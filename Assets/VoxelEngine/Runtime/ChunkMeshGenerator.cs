@@ -12,9 +12,8 @@ namespace VoxelEngine
     struct Vertex
     {
         public float3 pos;
-        public float2 uv;
         public int voxelId;
-        public int normalIndex;
+        public int faceIndex;
     }
 
     [BurstCompile]
@@ -102,26 +101,22 @@ namespace VoxelEngine
                     Verts.Add(new Vertex
                     {
                         pos = new float3(x, y, z),
-                        normalIndex = 1,
-                        uv = new float2(1 , 0)
+                        faceIndex = 1,
                     });
                     Verts.Add(new Vertex
                     {
                         pos = new float3(x, y, z + 1),
-                        normalIndex = 1,
-                        uv = new float2(0, 0)
+                        faceIndex = 1,
                     });
                     Verts.Add(new Vertex
                     {
                         pos = new float3(x, y + 1, z + 1),
-                        normalIndex = 1,
-                        uv = new float2(0, 1)
+                        faceIndex = 1,
                     });
                     Verts.Add(new Vertex
                     {
                         pos = new float3(x, y + 1, z),
-                        normalIndex = 1,
-                        uv = new float2(1 , 1 )
+                        faceIndex = 1,
                     });
 
                     Triangles.Add(vertexCount);
@@ -136,26 +131,22 @@ namespace VoxelEngine
                     Verts.Add(new Vertex
                     {
                         pos = new float3(x, y, z),
-                        normalIndex = 0,
-                        uv = new float2(1 , 0)
+                        faceIndex = 0,
                     });
                     Verts.Add(new Vertex
                     {
                         pos = new float3(x, y, z + 1),
-                        normalIndex = 0,
-                        uv = new float2(0, 0)
+                        faceIndex = 0,
                     });
                     Verts.Add(new Vertex
                     {
                         pos = new float3(x, y + 1, z + 1),
-                        normalIndex = 0,
-                        uv = new float2(0, 1 )
+                        faceIndex = 0,
                     });
                     Verts.Add(new Vertex
                     {
                         pos = new float3(x, y + 1, z),
-                        normalIndex = 0,
-                        uv = new float2(1 , 1 )
+                        faceIndex = 0,
                     });
 
                     Triangles.Add(vertexCount);
@@ -170,26 +161,22 @@ namespace VoxelEngine
                     Verts.Add(new Vertex
                     {
                         pos = new float3(x, y, z),
-                        normalIndex = 2,
-                        uv = new float2(1 , 0)
+                        faceIndex = 2,
                     });
                     Verts.Add(new Vertex
                     {
                         pos = new float3(x, y, z + 1),
-                        normalIndex = 2,
-                        uv = new float2(0, 0)
+                        faceIndex = 2,
                     });
                     Verts.Add(new Vertex
                     {
                         pos = new float3(x + 1, y, z + 1),
-                        normalIndex = 2,
-                        uv = new float2(0, 1 )
+                        faceIndex = 2,
                     });
                     Verts.Add(new Vertex
                     {
                         pos = new float3(x + 1, y, z),
-                        normalIndex = 2,
-                        uv = new float2(1 , 1 )
+                        faceIndex = 2,
                     });
 
                     Triangles.Add(vertexCount);
@@ -204,26 +191,22 @@ namespace VoxelEngine
                     Verts.Add(new Vertex
                     {
                         pos = new float3(x, y, z),
-                        normalIndex = 3,
-                        uv = new float2(1 / 16f, 0)
+                        faceIndex = 3,
                     });
                     Verts.Add(new Vertex
                     {
                         pos = new float3(x, y, z + 1),
-                        normalIndex = 3,
-                        uv = new float2(0, 0)
+                        faceIndex = 3,
                     });
                     Verts.Add(new Vertex
                     {
                         pos = new float3(x + 1, y, z + 1),
-                        normalIndex = 3,
-                        uv = new float2(0, 1)
+                        faceIndex = 3,
                     });
                     Verts.Add(new Vertex
                     {
                         pos = new float3(x + 1, y, z),
-                        normalIndex = 3,
-                        uv = new float2(1 , 1 )
+                        faceIndex = 3,
                     });
 
                     Triangles.Add(vertexCount);
@@ -238,26 +221,22 @@ namespace VoxelEngine
                     Verts.Add(new Vertex
                     {
                         pos = new float3(x, y, z),
-                        normalIndex = 4,
-                        uv = new float2(1 , 0)
+                        faceIndex = 4,
                     });
                     Verts.Add(new Vertex
                     {
                         pos = new float3(x, y + 1, z),
-                        normalIndex = 4,
-                        uv = new float2(0, 0)
+                        faceIndex = 4,
                     });
                     Verts.Add(new Vertex
                     {
                         pos = new float3(x + 1, y + 1, z),
-                        normalIndex = 4,
-                        uv = new float2(0, 1 )
+                        faceIndex = 4,
                     });
                     Verts.Add(new Vertex
                     {
                         pos = new float3(x + 1, y, z),
-                        normalIndex = 4,
-                        uv = new float2(1 , 1 )
+                        faceIndex = 4,
                     });
 
                     Triangles.Add(vertexCount);
@@ -271,26 +250,22 @@ namespace VoxelEngine
                     Verts.Add(new Vertex
                     {
                         pos = new float3(x, y, z),
-                        normalIndex = 5,
-                        uv = new float2(1 , 0)
+                        faceIndex = 5,
                     });
                     Verts.Add(new Vertex
                     {
                         pos = new float3(x, y + 1, z),
-                        normalIndex = 5,
-                        uv = new float2(0, 0)
+                        faceIndex = 5,
                     });
                     Verts.Add(new Vertex
                     {
                         pos = new float3(x + 1, y + 1, z),
-                        normalIndex = 5,
-                        uv = new float2(0, 1 )
+                        faceIndex = 5,
                     });
                     Verts.Add(new Vertex
                     {
                         pos = new float3(x + 1, y, z),
-                        normalIndex = 5,
-                        uv = new float2(1 , 1 )
+                        faceIndex = 5,
                     });
 
                     Triangles.Add(vertexCount);
@@ -333,7 +308,6 @@ namespace VoxelEngine
             var layout = new[]
             {
                 new VertexAttributeDescriptor(VertexAttribute.Position, VertexAttributeFormat.Float32, 3),
-                new VertexAttributeDescriptor(VertexAttribute.TexCoord0, VertexAttributeFormat.Float32, 2),
                 new VertexAttributeDescriptor(VertexAttribute.TexCoord1, VertexAttributeFormat.UInt32, 1),
                 new VertexAttributeDescriptor(VertexAttribute.TexCoord2, VertexAttributeFormat.UInt32, 1),
             };

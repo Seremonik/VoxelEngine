@@ -29,7 +29,7 @@ Shader "Custom/DebugVoxelTextureAtlas"
                 float4 vertex : POSITION;
                 float2 uv : TEXCOORD0;
                 int voxelId : TEXCOORD1;
-                int normalIndex : TEXCOORD2;
+                int faceIndex : TEXCOORD2;
             };
 
             struct v2f
@@ -47,6 +47,32 @@ Shader "Custom/DebugVoxelTextureAtlas"
             float4 _TileSize;
             float _AmbientBoost; 
 
+            //Calculate UVs based on faceIndex and position
+            float2 CalculateUV(float4 vertex, float faceIndex)
+            {
+                // Get local position in the voxel
+                float3 localPos = vertex.xyz;
+            
+                // Determine UV based on faceIndex
+                if (faceIndex == 0 || faceIndex == 1) // +X or -X
+                {
+                    return float2(localPos.z % 2, localPos.y % 2);
+                }
+                if (faceIndex == 2 || faceIndex == 3) // +Y or -Y
+                {
+                    return float2(localPos.x % 2, localPos.z % 2);
+                }
+                // +Z or -Z
+                return float2(localPos.x % 2, localPos.y % 2);
+            }
+
+            float2 CalculateAtlasOffset(float voxelId)
+            {
+                float2 tileOffset = float2(fmod(voxelId, 1.0 / _TileSize.x) * _TileSize.x, 
+                                           floor(voxelId * _TileSize.x) * _TileSize.y);
+                return tileOffset;
+            }
+            
             float3 GetNormal(float normalIndex)
             {
                 if (normalIndex == 0) return float3(1, 0, 0);
@@ -61,15 +87,17 @@ Shader "Custom/DebugVoxelTextureAtlas"
             {
                 v2f o;
                 o.pos = UnityObjectToClipPos(v.vertex);
-                o.worldNormal = GetNormal(v.normalIndex);
+                o.worldNormal = GetNormal(v.faceIndex);
                 o.worldPos = mul(unity_ObjectToWorld, v.vertex).xyz;
 
                 TRANSFER_SHADOW(o);
                 // Calculate UV based on the tile index
                 float tileIndex = 30;
+
+                float2 uv = CalculateUV(v.vertex, v.faceIndex);
                 float2 tileOffset = float2(fmod(tileIndex, 1.0 / _TileSize.x) * _TileSize.x, 
                                            floor(tileIndex * _TileSize.x) * _TileSize.y);
-                o.uv = v.uv * _TileSize.xy + tileOffset;
+                o.uv = uv * _TileSize.xy + tileOffset;
 
                 return o;
             }
