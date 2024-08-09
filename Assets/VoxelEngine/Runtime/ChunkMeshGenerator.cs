@@ -11,10 +11,7 @@ namespace VoxelEngine
     [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
     struct Vertex
     {
-        public float3 pos;
-        public int voxelId;
-        public int faceIndex;
-        public int data;
+        public uint data;
     }
 
     [BurstCompile]
@@ -37,7 +34,7 @@ namespace VoxelEngine
                     for (int z = 0; z < 32; z++)
                     {
                         int arrayIndex = x + y * 32 + z * 32 * 32;
-                        ushort voxel = Voxels[arrayIndex];
+                        ushort voxel = 15;
                         
                         if (isAir(arrayIndex, Voxels))
                             continue;
@@ -50,31 +47,31 @@ namespace VoxelEngine
 
                         if (isAir(x - 1, y, z, Voxels))
                         {
-                            GenerateFace(x, y, z, 0, Triangles, Verts, voxel,vertexCount);
+                            GenerateFace(x, y, z, 0, Triangles, Verts, voxel, vertexCount);
                             vertexCount += 4;
                         }
 
                         if (isAir(x, y + 1, z, Voxels))
                         {
-                            GenerateFace(x, y + 1, z, 2, Triangles, Verts, voxel,vertexCount);
+                            GenerateFace(x, y + 1, z, 2, Triangles, Verts, voxel, vertexCount);
                             vertexCount += 4;
                         }
 
                         if (isAir(x, y - 1, z, Voxels))
                         {
-                            GenerateFace(x, y, z, 3, Triangles, Verts, voxel,vertexCount);
+                            GenerateFace(x, y, z, 3, Triangles, Verts, voxel, vertexCount);
                             vertexCount += 4;
                         }
 
                         if (isAir(x, y, z + 1, Voxels))
                         {
-                            GenerateFace(x, y, z + 1, 4, Triangles, Verts, voxel,vertexCount);
+                            GenerateFace(x, y, z + 1, 4, Triangles, Verts, voxel, vertexCount);
                             vertexCount += 4;
                         }
 
                         if (isAir(x, y, z - 1, Voxels))
                         {
-                            GenerateFace(x, y, z, 5, Triangles, Verts, voxel,vertexCount);
+                            GenerateFace(x, y, z, 5, Triangles, Verts, voxel, vertexCount);
                             vertexCount += 4;
                         }
                     }
@@ -94,7 +91,7 @@ namespace VoxelEngine
 
             return voxels[x + y * 32 + z * 32 * 32] == 0;
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static bool isAir(int arrayIndex, NativeArray<ushort> voxels)
         {
@@ -126,20 +123,21 @@ namespace VoxelEngine
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static int EncodeValue(int faceId, ushort voxelId, int x, int y, int z)
+        private static uint EncodeValue(int faceId, ushort voxelId, int x, int y, int z)
         {
+            // Ensure values are within the allowed range
+            x &= 0x3F; // 6 bits (0-63)
+            y &= 0x3F; // 6 bits (0-63)
+            z &= 0x3F; // 6 bits (0-63)
+            faceId &= 0x7; // 3 bits (0-7)
+            voxelId &= 0xFF; // 8 bits (0-255)
+            
             //change to byte
-            int result = faceId;
-            result <<= 8;
-            result |= voxelId;
-            result <<= 6;
-            result |= x;
-            result <<= 6;
-            result |= y;
-            result <<= 6;
-            result |= z;
+            uint packedData = (uint)(x) | ((uint)y << 6) | ((uint)z << 12) | ((uint)faceId << 18) |
+                              ((uint)voxelId << 26);
 
-            return result;
+
+            return packedData;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -151,26 +149,18 @@ namespace VoxelEngine
                 case 0: //Left
                     Verts.Add(new Vertex
                     {
-                        pos = new float3(x, y, z),
-                        faceIndex = 1,
                         data = EncodeValue(1, voxelId, x, y, z),
                     });
                     Verts.Add(new Vertex
                     {
-                        pos = new float3(x, y, z + 1),
-                        faceIndex = 1,
                         data = EncodeValue(1, voxelId, x, y, z + 1),
                     });
                     Verts.Add(new Vertex
                     {
-                        pos = new float3(x, y + 1, z + 1),
-                        faceIndex = 1,
                         data = EncodeValue(1, voxelId, x, y + 1, z + 1),
                     });
                     Verts.Add(new Vertex
                     {
-                        pos = new float3(x, y + 1, z),
-                        faceIndex = 1,
                         data = EncodeValue(1, voxelId, x, y + 1, z),
                     });
 
@@ -180,27 +170,19 @@ namespace VoxelEngine
                 case 1: //Right
                     Verts.Add(new Vertex
                     {
-                        pos = new float3(x, y, z),
                         data = EncodeValue(0, voxelId, x, y, z),
-                        faceIndex = 0,
                     });
                     Verts.Add(new Vertex
                     {
-                        pos = new float3(x, y, z + 1),
                         data = EncodeValue(0, voxelId, x, y, z + 1),
-                        faceIndex = 0,
                     });
                     Verts.Add(new Vertex
                     {
-                        pos = new float3(x, y + 1, z + 1),
-                        data = EncodeValue(0, voxelId, x, y + 1, +1),
-                        faceIndex = 0,
+                        data = EncodeValue(0, voxelId, x, y + 1, z+1),
                     });
                     Verts.Add(new Vertex
                     {
-                        pos = new float3(x, y + 1, z),
                         data = EncodeValue(0, voxelId, x, y + 1, z),
-                        faceIndex = 0,
                     });
 
                     BackFace(Triangles, vertexCount);
@@ -209,26 +191,18 @@ namespace VoxelEngine
                 case 2: //Top
                     Verts.Add(new Vertex
                     {
-                        pos = new float3(x, y, z),
-                        faceIndex = 2,
                         data = EncodeValue(2, voxelId, x, y, z),
                     });
                     Verts.Add(new Vertex
                     {
-                        pos = new float3(x, y, z + 1),
-                        faceIndex = 2,
                         data = EncodeValue(2, voxelId, x, y, z + 1),
                     });
                     Verts.Add(new Vertex
                     {
-                        pos = new float3(x + 1, y, z + 1),
-                        faceIndex = 2,
                         data = EncodeValue(2, voxelId, x + 1, y, z + 1),
                     });
                     Verts.Add(new Vertex
                     {
-                        pos = new float3(x + 1, y, z),
-                        faceIndex = 2,
                         data = EncodeValue(2, voxelId, x + 1, y, z),
                     });
 
@@ -237,26 +211,18 @@ namespace VoxelEngine
                 case 3: //Bottom
                     Verts.Add(new Vertex
                     {
-                        pos = new float3(x, y, z),
-                        faceIndex = 3,
                         data = EncodeValue(3, voxelId, x, y, z),
                     });
                     Verts.Add(new Vertex
                     {
-                        pos = new float3(x, y, z + 1),
-                        faceIndex = 3,
                         data = EncodeValue(3, voxelId, x, y, z + 1),
                     });
                     Verts.Add(new Vertex
                     {
-                        pos = new float3(x + 1, y, z + 1),
-                        faceIndex = 3,
                         data = EncodeValue(3, voxelId, x + 1, y, z + 1),
                     });
                     Verts.Add(new Vertex
                     {
-                        pos = new float3(x + 1, y, z),
-                        faceIndex = 3,
                         data = EncodeValue(3, voxelId, x + 1, y, z),
                     });
 
@@ -266,26 +232,18 @@ namespace VoxelEngine
                 case 4: //Bottom
                     Verts.Add(new Vertex
                     {
-                        pos = new float3(x, y, z),
-                        faceIndex = 4,
                         data = EncodeValue(4, voxelId, x, y, z),
                     });
                     Verts.Add(new Vertex
                     {
-                        pos = new float3(x, y + 1, z),
-                        faceIndex = 4,
                         data = EncodeValue(4, voxelId, x, y + 1, z),
                     });
                     Verts.Add(new Vertex
                     {
-                        pos = new float3(x + 1, y + 1, z),
-                        faceIndex = 4,
                         data = EncodeValue(4, voxelId, x + 1, y + 1, z),
                     });
                     Verts.Add(new Vertex
                     {
-                        pos = new float3(x + 1, y, z),
-                        faceIndex = 4,
                         data = EncodeValue(4, voxelId, x + 1, y, z),
                     });
 
@@ -294,26 +252,18 @@ namespace VoxelEngine
                 case 5: //Bottom
                     Verts.Add(new Vertex
                     {
-                        pos = new float3(x, y, z),
-                        faceIndex = 5,
                         data = EncodeValue(5, voxelId, x, y, z),
                     });
                     Verts.Add(new Vertex
                     {
-                        pos = new float3(x, y + 1, z),
-                        faceIndex = 5,
                         data = EncodeValue(5, voxelId, x, y + 1, z),
                     });
                     Verts.Add(new Vertex
                     {
-                        pos = new float3(x + 1, y + 1, z),
-                        faceIndex = 5,
                         data = EncodeValue(5, voxelId, x + 1, y + 1, z),
                     });
                     Verts.Add(new Vertex
                     {
-                        pos = new float3(x + 1, y, z),
-                        faceIndex = 5,
                         data = EncodeValue(5, voxelId, x + 1, y, z),
                     });
 
@@ -350,10 +300,7 @@ namespace VoxelEngine
 
             var layout = new[]
             {
-                new VertexAttributeDescriptor(VertexAttribute.Position, VertexAttributeFormat.Float32, 3),
-                new VertexAttributeDescriptor(VertexAttribute.TexCoord1, VertexAttributeFormat.UInt32, 1),
-                new VertexAttributeDescriptor(VertexAttribute.TexCoord2, VertexAttributeFormat.UInt32, 1),
-                new VertexAttributeDescriptor(VertexAttribute.TexCoord3, VertexAttributeFormat.UInt32, 1),
+                new VertexAttributeDescriptor(VertexAttribute.TexCoord0, VertexAttributeFormat.UInt32, 1),
             };
             var vertexCount = verts.Length;
             var trisCount = triangles.Length;
@@ -366,7 +313,7 @@ namespace VoxelEngine
             mesh.SetIndexBufferData(triangles.AsArray(), 0, 0, trisCount);
 
             mesh.SetSubMesh(0, new SubMeshDescriptor(0, trisCount));
-            mesh.RecalculateBounds();
+            mesh.bounds = new Bounds(new Vector3(16,16,16), new Vector3(32,32,32));
 
             return mesh;
         }

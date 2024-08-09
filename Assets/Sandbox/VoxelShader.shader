@@ -26,10 +26,7 @@ Shader "Custom/DebugVoxelTextureAtlas"
             
             struct appdata
             {
-                float4 vertex : POSITION;
-                float2 uv : TEXCOORD0;
-                int voxelId : TEXCOORD1;
-                int faceIndex : TEXCOORD2;
+                int encodedData : TEXCOORD0;
             };
 
             struct v2f
@@ -40,13 +37,22 @@ Shader "Custom/DebugVoxelTextureAtlas"
                 float4 pos : SV_POSITION;
                 SHADOW_COORDS(3)
             };
-
-
+            
             sampler2D _MainTex;
             float4 _Color;
             float4 _TileSize;
             float _AmbientBoost; 
 
+            // Function to decode packed data
+            void UnpackVertexData(uint packedData, out float3 pos, out float faceIndex, out float voxelId)
+            {
+                pos.x = float((packedData & 0x3F)); // x
+                pos.y = float((packedData >> 6) & 0x3F); // y
+                pos.z = float((packedData >> 12) & 0x3F); // z
+                faceIndex = float((packedData >> 18) & 0x7); // faceIndex
+                voxelId = float((packedData >> 26) & 0xFF); // voxelId
+            }
+            
             //Calculate UVs based on faceIndex and position
             float2 CalculateUV(float4 vertex, float faceIndex)
             {
@@ -85,18 +91,23 @@ Shader "Custom/DebugVoxelTextureAtlas"
             
             v2f vert (appdata v)
             {
+                float3 pos;
+                float faceIndex, voxelId;
+                UnpackVertexData(v.encodedData, pos, faceIndex, voxelId);
+                
+                float4 newPos = float4(pos,1);
+                
                 v2f o;
-                o.pos = UnityObjectToClipPos(v.vertex);
-                o.worldNormal = GetNormal(v.faceIndex);
-                o.worldPos = mul(unity_ObjectToWorld, v.vertex).xyz;
+                o.pos = UnityObjectToClipPos(newPos);
+                o.worldNormal = GetNormal(faceIndex);
+                o.worldPos = mul(unity_ObjectToWorld, newPos).xyz;
 
                 TRANSFER_SHADOW(o);
                 // Calculate UV based on the tile index
-                float tileIndex = 30;
 
-                float2 uv = CalculateUV(v.vertex, v.faceIndex);
-                float2 tileOffset = float2(fmod(tileIndex, 1.0 / _TileSize.x) * _TileSize.x, 
-                                           floor(tileIndex * _TileSize.x) * _TileSize.y);
+                float2 uv = CalculateUV(newPos, faceIndex);
+                float2 tileOffset = float2(fmod(voxelId, 1.0 / _TileSize.x) * _TileSize.x, 
+                                           floor(voxelId * _TileSize.x) * _TileSize.y);
                 o.uv = uv * _TileSize.xy + tileOffset;
 
                 return o;
