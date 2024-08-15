@@ -5,7 +5,8 @@ namespace VoxelEngine
 {
     public struct ChunkData
     {
-        public NativeArray<ushort> Voxels;
+        public NativeArray<byte> Voxels;
+        public NativeArray<ulong> BitMatrix;
         public Vector3Int ChunkPosition;
         public Vector3 PivotPosition;
         public Mesh Mesh;

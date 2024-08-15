@@ -15,10 +15,10 @@ namespace VoxelEngine
     }
 
     [BurstCompile]
-    struct MarchingCubesJob : IJob
+    partial struct MarchingCubesJob : IJob
     {
         [ReadOnly]
-        public NativeArray<ushort> Voxels;
+        public NativeArray<byte> Voxels;
         public NativeList<int> Triangles;
         public NativeList<Vertex> Verts;
         private int vertexCount;
@@ -78,9 +78,8 @@ namespace VoxelEngine
                 }
             }
         }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static bool isAir(int x, int y, int z, NativeArray<ushort> voxels)
+        
+        private static bool isAir(int x, int y, int z, NativeArray<byte> voxels)
         {
             if (x is < 0 or >= 32)
                 return true;
@@ -91,15 +90,13 @@ namespace VoxelEngine
 
             return voxels[x + y * 32 + z * 32 * 32] == 0;
         }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static bool isAir(int arrayIndex, NativeArray<ushort> voxels)
+        
+        private static bool isAir(int arrayIndex, NativeArray<byte> voxels)
         {
             return voxels[arrayIndex] == 0;
         }
 
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        
         private static void FrontFace(NativeList<int> Triangles, int vertexCount)
         {
             //Check the AddRange performance
@@ -110,8 +107,7 @@ namespace VoxelEngine
             Triangles.Add(vertexCount + 2);
             Triangles.Add(vertexCount + 3);
         }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        
         private static void BackFace(NativeList<int> Triangles, int vertexCount)
         {
             Triangles.Add(vertexCount);
@@ -121,8 +117,7 @@ namespace VoxelEngine
             Triangles.Add(vertexCount + 3);
             Triangles.Add(vertexCount + 2);
         }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        
         private static uint EncodeValue(int faceId, ushort voxelId, int x, int y, int z)
         {
             // Ensure values are within the allowed range
@@ -139,8 +134,7 @@ namespace VoxelEngine
 
             return packedData;
         }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        
         private static void GenerateFace(int x, int y, int z, int face, NativeList<int> Triangles,
             NativeList<Vertex> Verts, ushort voxelId, int vertexCount)
         {
@@ -229,7 +223,7 @@ namespace VoxelEngine
                     BackFace(Triangles, vertexCount);
 
                     break;
-                case 4: //Bottom
+                case 4: //Front
                     Verts.Add(new Vertex
                     {
                         data = EncodeValue(4, voxelId, x, y, z),
@@ -249,7 +243,7 @@ namespace VoxelEngine
 
                     BackFace(Triangles, vertexCount);
                     break;
-                case 5: //Bottom
+                case 5: //Back
                     Verts.Add(new Vertex
                     {
                         data = EncodeValue(5, voxelId, x, y, z),
@@ -273,7 +267,7 @@ namespace VoxelEngine
         }
     }
 
-    public class ChunkMeshGenerator
+    public class ChunkMeshGenerator : IMeshGenerator
     {
         private int trianglesCount = 0;
 
