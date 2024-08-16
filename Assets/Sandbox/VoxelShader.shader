@@ -38,6 +38,13 @@ Shader "Custom/DebugVoxelTextureAtlas"
                 SHADOW_COORDS(3)
             };
             
+            struct Voxel
+            {
+                int encodedValues;
+            };
+            
+            StructuredBuffer<Voxel> voxelData;
+            
             sampler2D _MainTex;
             float4 _Color;
             float4 _TileSize;
@@ -115,6 +122,7 @@ Shader "Custom/DebugVoxelTextureAtlas"
 
             fixed4 frag (v2f i) : SV_Target
             {
+                Voxel voxel = voxelData[0]; // Example access; adjust indexing as needed
                 fixed4 texColor = tex2D(_MainTex, i.uv) * _Color;
 
                 // Apply lighting

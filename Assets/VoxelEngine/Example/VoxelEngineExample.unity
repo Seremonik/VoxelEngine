@@ -420,8 +420,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1195454612}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.035732325, y: -0.91403514, z: 0.08280337, w: -0.39548284}
-  m_LocalPosition: {x: 108.790985, y: -20.582897, z: 153.47458}
+  m_LocalRotation: {x: 0.21640933, y: 0.46415508, z: -0.11850799, w: 0.8506956}
+  m_LocalPosition: {x: -13.645925, y: 27.147856, z: 0.47411397}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -771,7 +771,7 @@ Transform:
   m_GameObject: {fileID: 1321439800}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 40, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -818,6 +818,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   meshFilter: {fileID: 1636674226}
   meshFilter2: {fileID: 1321439802}
+  meshRenderer: {fileID: 1321439801}
+  meshRenderer1: {fileID: 1636674229}
+  voxelShader: {fileID: 4800000, guid: 7b5c8b341d21bb24bb55a2fb51b42246, type: 3}
 --- !u!4 &1636674228
 Transform:
   m_ObjectHideFlags: 0

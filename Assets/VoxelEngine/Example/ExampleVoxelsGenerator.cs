@@ -1,3 +1,4 @@
+using System;
 using System.Security.Cryptography;
 using Unity.Collections;
 using Unity.Mathematics;
@@ -12,6 +13,7 @@ namespace VoxelEngine.Example
         private float scale = 0.06f;
         public NativeArray<byte> Voxels => voxels;
         public NativeArray<ulong> BitMatrix => bitMatrix;
+
         private NativeArray<byte> voxels;
         private NativeArray<ulong> bitMatrix;
 
@@ -33,6 +35,24 @@ namespace VoxelEngine.Example
         public int GetVoxel(int x, int y, int z)
         {
             return voxels[x + y * xSize + z * xSize * ySize];
+        }
+
+        public NativeArray<int> GetVoxelBuffer()
+        {
+            NativeArray<int> voxelBuffer = new NativeArray<int>(xSize * xSize * 8, Allocator.Persistent);
+            for (int x = 0; x < xSize; x++)
+            {
+                for (int y = 0; y < ySize; y++)
+                {
+                    for (int z = 0; z < zSize; z++)
+                    {
+                        voxelBuffer[x + y * ySize + (z / 4 * xSize * xSize)] |=
+                            voxels[x + y * ySize + (z * xSize * xSize)] << (z*8)%32;
+                    }
+                }
+            }
+
+            return voxelBuffer;
         }
 
         private void GenerateVoxels()
@@ -66,7 +86,7 @@ namespace VoxelEngine.Example
                             continue;
 
                         bitMatrix[z + (y * xSize)] |= 1UL << x;
-                        bitMatrix[x + (z * xSize) + chunkSize ] |= 1UL << y;
+                        bitMatrix[x + (z * xSize) + chunkSize] |= 1UL << y;
                         bitMatrix[x + (y * xSize) + chunkSize * 2] |= 1UL << z;
                     }
                 }
@@ -79,7 +99,7 @@ namespace VoxelEngine.Example
             float yz = Mathf.PerlinNoise(y, z);
             float xz = Mathf.PerlinNoise(x, z);
 
-            float yx = Mathf.PerlinNoise(y*2, x);
+            float yx = Mathf.PerlinNoise(y * 2, x);
             float zy = Mathf.PerlinNoise(z, y);
             float zx = Mathf.PerlinNoise(z, x);
 
