@@ -39,32 +39,20 @@ namespace VoxelEngine.Example
 
         public NativeArray<uint> GetVoxelBuffer()
         {
-            NativeArray<uint> voxelBuffer = new NativeArray<uint>(xSize * xSize * 32, Allocator.Persistent);
-            // for (int x = 0; x < xSize; x++)
-            // {
-            //     for (int y = 0; y < ySize; y++)
-            //     {
-            //         for (int z = 0; z < zSize; z++)
-            //         {
-            //             int bufferIndex = x + y * ySize + (z / 4 * xSize * xSize);
-            //             uint voxel = voxels[x + y * ySize + (z * xSize * xSize)];
-            //             voxelBuffer[bufferIndex] |= voxel << (z*8)%32;
-            //         }
-            //     }
-            // }
-
+            NativeArray<uint> voxelBuffer = new NativeArray<uint>(xSize * xSize * 8, Allocator.Persistent);
             for (int x = 0; x < xSize; x++)
             {
                 for (int y = 0; y < ySize; y++)
                 {
-                    for (int z = 0; z < 32; z++)
+                    for (int z = 0; z < zSize; z++)
                     {
-                        voxelBuffer[x + y * xSize + z * xSize * ySize] = (byte)(y+1);
+                        int bufferIndex = x + y * ySize + (z / 4 * xSize * xSize);
+                        uint voxel = voxels[x + y * ySize + (z * xSize * xSize)];
+                        voxelBuffer[bufferIndex] |= voxel << (z*8)%32;
                     }
                 }
             }
-
-
+            
             return voxelBuffer;
         }
 

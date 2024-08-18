@@ -39,7 +39,7 @@ namespace VoxelEngine.Example
         {
             IVoxelsGenerator voxelsesGenerator = new ExampleVoxelsGenerator(32,32,32);
             IMeshGenerator meshGenerator = new BinaryMeshGenerator();
-            voxelBuffer = new ComputeBuffer(32 * 32 * 32, System.Runtime.InteropServices.Marshal.SizeOf(typeof(int)), ComputeBufferType.Default);
+            voxelBuffer = new ComputeBuffer(32 * 32 * 8, System.Runtime.InteropServices.Marshal.SizeOf(typeof(int)), ComputeBufferType.Default);
             voxelBuffer.SetData(voxelsesGenerator.GetVoxelBuffer());
             voxelMaterial = Instantiate(meshRenderer1.sharedMaterial);
             voxelMaterial.SetBuffer("voxelBuffer", voxelBuffer);

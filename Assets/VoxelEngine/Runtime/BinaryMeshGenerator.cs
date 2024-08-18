@@ -87,19 +87,19 @@ namespace VoxelEngine
                 case SideOrientation.Left: //Left
                     Verts.Add(new Vertex
                     {
-                        data = EncodeValue(sideOrientation, 1, z, y, x),
+                        data = EncodeValue(sideOrientation, z, y, x),
                     });
                     Verts.Add(new Vertex
                     {
-                        data = EncodeValue(sideOrientation, 1, z, y, x + 1),
+                        data = EncodeValue(sideOrientation, z, y, x + 1),
                     });
                     Verts.Add(new Vertex
                     {
-                        data = EncodeValue(sideOrientation, 1, z, y + 1, x + 1),
+                        data = EncodeValue(sideOrientation, z, y + 1, x + 1),
                     });
                     Verts.Add(new Vertex
                     {
-                        data = EncodeValue(sideOrientation, 1, z, y + 1, x),
+                        data = EncodeValue(sideOrientation, z, y + 1, x),
                     });
 
                     FrontFace(Triangles, vertexCount);
@@ -108,19 +108,19 @@ namespace VoxelEngine
                 case SideOrientation.Right: //Right
                     Verts.Add(new Vertex
                     {
-                        data = EncodeValue(sideOrientation, 1, z + 1, y, x),
+                        data = EncodeValue(sideOrientation, z + 1, y, x),
                     });
                     Verts.Add(new Vertex
                     {
-                        data = EncodeValue(sideOrientation, 1, z + 1, y, x + 1),
+                        data = EncodeValue(sideOrientation, z + 1, y, x + 1),
                     });
                     Verts.Add(new Vertex
                     {
-                        data = EncodeValue(sideOrientation, 1, z + 1, y + 1, x + 1),
+                        data = EncodeValue(sideOrientation, z + 1, y + 1, x + 1),
                     });
                     Verts.Add(new Vertex
                     {
-                        data = EncodeValue(sideOrientation, 1, z + 1, y + 1, x),
+                        data = EncodeValue(sideOrientation, z + 1, y + 1, x),
                     });
                     BackFace(Triangles, vertexCount);
 
@@ -128,19 +128,19 @@ namespace VoxelEngine
                 case SideOrientation.Top: //Top
                     Verts.Add(new Vertex
                     {
-                        data = EncodeValue(sideOrientation, 1, x, z + 1, y),
+                        data = EncodeValue(sideOrientation, x, z + 1, y),
                     });
                     Verts.Add(new Vertex
                     {
-                        data = EncodeValue(sideOrientation, 1, x, z + 1, y + 1),
+                        data = EncodeValue(sideOrientation, x, z + 1, y + 1),
                     });
                     Verts.Add(new Vertex
                     {
-                        data = EncodeValue(sideOrientation, 1, x + 1, z + 1, y + 1),
+                        data = EncodeValue(sideOrientation, x + 1, z + 1, y + 1),
                     });
                     Verts.Add(new Vertex
                     {
-                        data = EncodeValue(sideOrientation, 1, x + 1, z + 1, y),
+                        data = EncodeValue(sideOrientation, x + 1, z + 1, y),
                     });
 
                     FrontFace(Triangles, vertexCount);
@@ -148,19 +148,19 @@ namespace VoxelEngine
                 case SideOrientation.Bottom: //Bottom
                     Verts.Add(new Vertex
                     {
-                        data = EncodeValue(sideOrientation, 1, x, z, y),
+                        data = EncodeValue(sideOrientation, x, z, y),
                     });
                     Verts.Add(new Vertex
                     {
-                        data = EncodeValue(sideOrientation, 1, x, z, y + 1),
+                        data = EncodeValue(sideOrientation, x, z, y + 1),
                     });
                     Verts.Add(new Vertex
                     {
-                        data = EncodeValue(sideOrientation, 1, x + 1, z, y + 1),
+                        data = EncodeValue(sideOrientation, x + 1, z, y + 1),
                     });
                     Verts.Add(new Vertex
                     {
-                        data = EncodeValue(sideOrientation, 1, x + 1, z, y),
+                        data = EncodeValue(sideOrientation, x + 1, z, y),
                     });
 
                     BackFace(Triangles, vertexCount);
@@ -169,19 +169,19 @@ namespace VoxelEngine
                 case SideOrientation.Front: //Front
                     Verts.Add(new Vertex
                     {
-                        data = EncodeValue(sideOrientation, 1, x, y, z),
+                        data = EncodeValue(sideOrientation, x, y, z),
                     });
                     Verts.Add(new Vertex
                     {
-                        data = EncodeValue(sideOrientation, 1, x, y + 1, z),
+                        data = EncodeValue(sideOrientation, x, y + 1, z),
                     });
                     Verts.Add(new Vertex
                     {
-                        data = EncodeValue(sideOrientation, 1, x + 1, y + 1, z),
+                        data = EncodeValue(sideOrientation, x + 1, y + 1, z),
                     });
                     Verts.Add(new Vertex
                     {
-                        data = EncodeValue(sideOrientation, 1, x + 1, y, z),
+                        data = EncodeValue(sideOrientation, x + 1, y, z),
                     });
 
                     FrontFace(Triangles, vertexCount);
@@ -189,19 +189,19 @@ namespace VoxelEngine
                 case SideOrientation.Back: //Back
                     Verts.Add(new Vertex
                     {
-                        data = EncodeValue(sideOrientation, 1, x, y, z + 1),
+                        data = EncodeValue(sideOrientation, x, y, z + 1),
                     });
                     Verts.Add(new Vertex
                     {
-                        data = EncodeValue(sideOrientation, 1, x, y + 1, z + 1),
+                        data = EncodeValue(sideOrientation, x, y + 1, z + 1),
                     });
                     Verts.Add(new Vertex
                     {
-                        data = EncodeValue(sideOrientation, 1, x + 1, y + 1, z + 1),
+                        data = EncodeValue(sideOrientation, x + 1, y + 1, z + 1),
                     });
                     Verts.Add(new Vertex
                     {
-                        data = EncodeValue(sideOrientation, 1, x + 1, y, z + 1),
+                        data = EncodeValue(sideOrientation, x + 1, y, z + 1),
                     });
 
 
@@ -248,7 +248,7 @@ namespace VoxelEngine
             }
         }
 
-        private static uint EncodeValue(SideOrientation side, ushort voxelId, int x, int y, int z)
+        private static uint EncodeValue(SideOrientation side, int x, int y, int z)
         {
             int faceId = (int)side;
             // Ensure values are within the allowed range
@@ -256,11 +256,9 @@ namespace VoxelEngine
             y &= 0x3F; // 6 bits (0-63)
             z &= 0x3F; // 6 bits (0-63)
             faceId &= 0x7; // 3 bits (0-7)
-            voxelId &= 0xFF; // 8 bits (0-255)
 
             //change to byte
-            uint packedData = (uint)(x) | ((uint)y << 6) | ((uint)z << 12) | ((uint)faceId << 18) |
-                              ((uint)voxelId << 26);
+            uint packedData = (uint)(x) | ((uint)y << 6) | ((uint)z << 12) | ((uint)faceId << 18);
 
             return packedData;
         }
