@@ -3,7 +3,6 @@ using Unity.Collections;
 using Unity.Jobs;
 using UnityEngine;
 using UnityEngine.Rendering;
-using VoxelEngine;
 
 namespace VoxelEngine
 {
@@ -23,14 +22,14 @@ namespace VoxelEngine
         [ReadOnly]
         public NativeArray<ulong> BitMatrix;
         public NativeList<int> Triangles;
-        public NativeList<Vertex> Verts;
+        public NativeList<uint> Verts;
         public NativeArray<ulong> CullingBitMatrix;
         private int vertexCount;
         private int sidesBitMatrixLength;
 
         public void Execute()
         {
-            sidesBitMatrixLength = BinaryMeshGenerator.CHUNK_SIZE * BinaryMeshGenerator.CHUNK_SIZE;
+            sidesBitMatrixLength = VoxelEngineConstants.CHUNK_VOXEL_SIZE * VoxelEngineConstants.CHUNK_VOXEL_SIZE;
             vertexCount = 0;
 
             GenerateSidesBitMatrix(BitMatrix, CullingBitMatrix);
@@ -44,7 +43,7 @@ namespace VoxelEngine
 
         private static void GenerateSidesBitMatrix(NativeArray<ulong> bitMatrix, NativeArray<ulong> cullingBitMatrix)
         {
-            int sizeSquare = BinaryMeshGenerator.CHUNK_SIZE * BinaryMeshGenerator.CHUNK_SIZE;
+            int sizeSquare = VoxelEngineConstants.CHUNK_VOXEL_SIZE  * VoxelEngineConstants.CHUNK_VOXEL_SIZE ;
 
             for (int i = 0; i < sizeSquare; i++)
             {
@@ -59,17 +58,17 @@ namespace VoxelEngine
         }
 
         private static int DrawFaces(NativeSlice<ulong> cullingMatrix, SideOrientation sideOrientation,
-            NativeList<Vertex> Verts, NativeList<int> Triangles, int vertexCount)
+            NativeList<uint> Verts, NativeList<int> Triangles, int vertexCount)
         {
-            for (int i = 0; i < BinaryMeshGenerator.CHUNK_SIZE; i++)
+            for (int i = 1; i < VoxelEngineConstants.CHUNK_VOXEL_SIZE-1 ; i++)
             {
-                for (int j = 0; j < BinaryMeshGenerator.CHUNK_SIZE; j++)
+                for (int j = 1; j < VoxelEngineConstants.CHUNK_VOXEL_SIZE-1 ; j++)
                 {
-                    for (int k = 0; k < 32; k++)
+                    for (int k = 1; k < VoxelEngineConstants.CHUNK_VOXEL_SIZE-1 ; k++)
                     {
-                        if (((cullingMatrix[i + j * BinaryMeshGenerator.CHUNK_SIZE] >> k) & 1UL) == 1)
+                        if (((cullingMatrix[i + j * VoxelEngineConstants.CHUNK_VOXEL_SIZE ] >> k) & 1UL) == 1)
                         {
-                            DrawFace(i, j, k, sideOrientation, Verts, Triangles, vertexCount);
+                            DrawFace(i-1, j-1, k-1, sideOrientation, Verts, Triangles, vertexCount);
                             vertexCount += 4;
                         }
                     }
@@ -79,130 +78,58 @@ namespace VoxelEngine
             return vertexCount;
         }
 
-        private static void DrawFace(int x, int y, int z, SideOrientation sideOrientation, NativeList<Vertex> Verts,
+        private static void DrawFace(int x, int y, int z, SideOrientation sideOrientation, NativeList<uint> Verts,
             NativeList<int> Triangles, int vertexCount)
         {
             switch (sideOrientation)
             {
                 case SideOrientation.Left: //Left
-                    Verts.Add(new Vertex
-                    {
-                        data = EncodeValue(sideOrientation, z, y, x),
-                    });
-                    Verts.Add(new Vertex
-                    {
-                        data = EncodeValue(sideOrientation, z, y, x + 1),
-                    });
-                    Verts.Add(new Vertex
-                    {
-                        data = EncodeValue(sideOrientation, z, y + 1, x + 1),
-                    });
-                    Verts.Add(new Vertex
-                    {
-                        data = EncodeValue(sideOrientation, z, y + 1, x),
-                    });
+                    Verts.Add(EncodeValue(sideOrientation, z, y, x));
+                    Verts.Add(EncodeValue(sideOrientation, z, y, x + 1));
+                    Verts.Add(EncodeValue(sideOrientation, z, y + 1, x + 1));
+                    Verts.Add(EncodeValue(sideOrientation, z, y + 1, x));
 
                     FrontFace(Triangles, vertexCount);
                     break;
 
                 case SideOrientation.Right: //Right
-                    Verts.Add(new Vertex
-                    {
-                        data = EncodeValue(sideOrientation, z + 1, y, x),
-                    });
-                    Verts.Add(new Vertex
-                    {
-                        data = EncodeValue(sideOrientation, z + 1, y, x + 1),
-                    });
-                    Verts.Add(new Vertex
-                    {
-                        data = EncodeValue(sideOrientation, z + 1, y + 1, x + 1),
-                    });
-                    Verts.Add(new Vertex
-                    {
-                        data = EncodeValue(sideOrientation, z + 1, y + 1, x),
-                    });
+                    Verts.Add(EncodeValue(sideOrientation, z + 1, y, x));
+                    Verts.Add(EncodeValue(sideOrientation, z + 1, y, x + 1));
+                    Verts.Add(EncodeValue(sideOrientation, z + 1, y + 1, x + 1));
+                    Verts.Add(EncodeValue(sideOrientation, z + 1, y + 1, x));
                     BackFace(Triangles, vertexCount);
 
                     break;
                 case SideOrientation.Top: //Top
-                    Verts.Add(new Vertex
-                    {
-                        data = EncodeValue(sideOrientation, x, z + 1, y),
-                    });
-                    Verts.Add(new Vertex
-                    {
-                        data = EncodeValue(sideOrientation, x, z + 1, y + 1),
-                    });
-                    Verts.Add(new Vertex
-                    {
-                        data = EncodeValue(sideOrientation, x + 1, z + 1, y + 1),
-                    });
-                    Verts.Add(new Vertex
-                    {
-                        data = EncodeValue(sideOrientation, x + 1, z + 1, y),
-                    });
+                    Verts.Add(EncodeValue(sideOrientation, x, z + 1, y));
+                    Verts.Add(EncodeValue(sideOrientation, x, z + 1, y + 1));
+                    Verts.Add(EncodeValue(sideOrientation, x + 1, z + 1, y + 1));
+                    Verts.Add(EncodeValue(sideOrientation, x + 1, z + 1, y));
 
                     FrontFace(Triangles, vertexCount);
                     break;
                 case SideOrientation.Bottom: //Bottom
-                    Verts.Add(new Vertex
-                    {
-                        data = EncodeValue(sideOrientation, x, z, y),
-                    });
-                    Verts.Add(new Vertex
-                    {
-                        data = EncodeValue(sideOrientation, x, z, y + 1),
-                    });
-                    Verts.Add(new Vertex
-                    {
-                        data = EncodeValue(sideOrientation, x + 1, z, y + 1),
-                    });
-                    Verts.Add(new Vertex
-                    {
-                        data = EncodeValue(sideOrientation, x + 1, z, y),
-                    });
+                    Verts.Add(EncodeValue(sideOrientation, x, z, y));
+                    Verts.Add(EncodeValue(sideOrientation, x, z, y + 1));
+                    Verts.Add(EncodeValue(sideOrientation, x + 1, z, y + 1));
+                    Verts.Add(EncodeValue(sideOrientation, x + 1, z, y));
 
                     BackFace(Triangles, vertexCount);
 
                     break;
                 case SideOrientation.Front: //Front
-                    Verts.Add(new Vertex
-                    {
-                        data = EncodeValue(sideOrientation, x, y, z),
-                    });
-                    Verts.Add(new Vertex
-                    {
-                        data = EncodeValue(sideOrientation, x, y + 1, z),
-                    });
-                    Verts.Add(new Vertex
-                    {
-                        data = EncodeValue(sideOrientation, x + 1, y + 1, z),
-                    });
-                    Verts.Add(new Vertex
-                    {
-                        data = EncodeValue(sideOrientation, x + 1, y, z),
-                    });
+                    Verts.Add(EncodeValue(sideOrientation, x, y, z));
+                    Verts.Add(EncodeValue(sideOrientation, x, y + 1, z));
+                    Verts.Add(EncodeValue(sideOrientation, x + 1, y + 1, z));
+                    Verts.Add(EncodeValue(sideOrientation, x + 1, y, z));
 
                     FrontFace(Triangles, vertexCount);
                     break;
                 case SideOrientation.Back: //Back
-                    Verts.Add(new Vertex
-                    {
-                        data = EncodeValue(sideOrientation, x, y, z + 1),
-                    });
-                    Verts.Add(new Vertex
-                    {
-                        data = EncodeValue(sideOrientation, x, y + 1, z + 1),
-                    });
-                    Verts.Add(new Vertex
-                    {
-                        data = EncodeValue(sideOrientation, x + 1, y + 1, z + 1),
-                    });
-                    Verts.Add(new Vertex
-                    {
-                        data = EncodeValue(sideOrientation, x + 1, y, z + 1),
-                    });
+                    Verts.Add(EncodeValue(sideOrientation, x, y, z + 1));
+                    Verts.Add(EncodeValue(sideOrientation, x, y + 1, z + 1));
+                    Verts.Add(EncodeValue(sideOrientation, x + 1, y + 1, z + 1));
+                    Verts.Add(EncodeValue(sideOrientation, x + 1, y, z + 1));
 
 
                     BackFace(Triangles, vertexCount);
@@ -266,16 +193,15 @@ namespace VoxelEngine
 
     public class BinaryMeshGenerator : IMeshGenerator
     {
-        public const int CHUNK_SIZE = 32;
         private int trianglesCount = 0;
 
         private NativeList<int> triangles;
-        private NativeList<Vertex> verts = new(Allocator.Persistent);
+        private NativeList<uint> verts = new(Allocator.Persistent);
 
         public Mesh BuildChunkMesh(ChunkData chunkData, Mesh mesh = null)
         {
             triangles = new NativeList<int>(Allocator.Persistent);
-            verts = new NativeList<Vertex>(Allocator.Persistent);
+            verts = new NativeList<uint>(Allocator.Persistent);
 
             if (!mesh)
                 mesh = new Mesh();
@@ -286,7 +212,7 @@ namespace VoxelEngine
                 Triangles = triangles,
                 Verts = verts,
                 BitMatrix = chunkData.BitMatrix,
-                CullingBitMatrix = new NativeArray<ulong>(CHUNK_SIZE * CHUNK_SIZE * 6, Allocator.TempJob)
+                CullingBitMatrix = new NativeArray<ulong>(VoxelEngineConstants.CHUNK_VOXEL_SIZE * VoxelEngineConstants.CHUNK_VOXEL_SIZE * 6, Allocator.TempJob)
             };
             var handle = job.Schedule();
             handle.Complete();
@@ -306,8 +232,8 @@ namespace VoxelEngine
             mesh.SetIndexBufferParams(trisCount, IndexFormat.UInt32);
             mesh.SetIndexBufferData(triangles.AsArray(), 0, 0, trisCount);
 
-            mesh.SetSubMesh(0, new SubMeshDescriptor(0, trisCount));
-            mesh.bounds = new Bounds(new Vector3(16, 16, 16), new Vector3(32, 32, 32));
+            mesh.SetSubMesh(0, new SubMeshDescriptor(0, trisCount), MeshUpdateFlags.DontRecalculateBounds);
+            mesh.bounds = new Bounds(new Vector3(VoxelEngineConstants.CHUNK_VOXEL_SIZE /2f, VoxelEngineConstants.CHUNK_VOXEL_SIZE /2f, VoxelEngineConstants.CHUNK_VOXEL_SIZE /2f), new Vector3(VoxelEngineConstants.CHUNK_VOXEL_SIZE, VoxelEngineConstants.CHUNK_VOXEL_SIZE , VoxelEngineConstants.CHUNK_VOXEL_SIZE ));
 
             return mesh;
         }

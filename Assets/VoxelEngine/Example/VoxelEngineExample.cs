@@ -15,31 +15,18 @@ namespace VoxelEngine.Example
         private MeshRenderer meshRenderer1;
         private void Start()
         {
-            //GenerateMeshNaive();
             GenerateMeshBinary();
         }
-
-        private void GenerateMeshNaive()
-        {
-            IVoxelsGenerator voxelsesGenerator = new ExampleVoxelsGenerator(32,32,32);
-            IMeshGenerator meshGenerator = new ChunkMeshGenerator();
-            var chunk = new ChunkData()
-            {
-                Voxels = voxelsesGenerator.Voxels,
-                BitMatrix = voxelsesGenerator.BitMatrix
-            };
-            var mesh = meshGenerator.BuildChunkMesh(chunk);
-            meshFilter.mesh = mesh;
-        }
+        
         
         public ComputeBuffer voxelBuffer;
         private Material voxelMaterial;
 
         private void GenerateMeshBinary()
         {
-            IVoxelsGenerator voxelsesGenerator = new ExampleVoxelsGenerator(32,32,32);
+            IVoxelsGenerator voxelsesGenerator = new ExampleVoxelsGenerator(VoxelEngineConstants.CHUNK_VOXEL_SIZE);
             IMeshGenerator meshGenerator = new BinaryMeshGenerator();
-            voxelBuffer = new ComputeBuffer(32 * 32 * 8, System.Runtime.InteropServices.Marshal.SizeOf(typeof(int)), ComputeBufferType.Default);
+            voxelBuffer = new ComputeBuffer(VoxelEngineConstants.CHUNK_VOXEL_SIZE* VoxelEngineConstants.CHUNK_VOXEL_SIZE * (VoxelEngineConstants.CHUNK_VOXEL_SIZE/4), System.Runtime.InteropServices.Marshal.SizeOf(typeof(int)), ComputeBufferType.Default);
             voxelBuffer.SetData(voxelsesGenerator.GetVoxelBuffer());
             voxelMaterial = Instantiate(meshRenderer1.sharedMaterial);
             voxelMaterial.SetBuffer("voxelBuffer", voxelBuffer);

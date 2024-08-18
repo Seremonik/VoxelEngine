@@ -8,8 +8,9 @@ namespace VoxelEngine.Example
 {
     public class ExampleVoxelsGenerator : IVoxelsGenerator
     {
-        private ushort xSize, ySize, zSize;
-        private int size;
+        private ushort sideSize;
+        private int volumeSize;
+        private int squaredSize;
         private float scale = 0.06f;
         public NativeArray<byte> Voxels => voxels;
         public NativeArray<ulong> BitMatrix => bitMatrix;
@@ -17,38 +18,37 @@ namespace VoxelEngine.Example
         private NativeArray<byte> voxels;
         private NativeArray<ulong> bitMatrix;
 
-        public ExampleVoxelsGenerator(ushort xSize, ushort ySize, ushort zSize)
+        public ExampleVoxelsGenerator(ushort sideSize)
         {
-            this.xSize = xSize;
-            this.ySize = ySize;
-            this.zSize = zSize;
-            size = xSize * ySize * zSize;
+            this.sideSize = sideSize;
+            volumeSize = sideSize * sideSize * sideSize;
+            squaredSize = sideSize * sideSize;
             GenerateVoxels();
             CalculateBitMatrix();
         }
 
         public int GetVoxel(int3 position)
         {
-            return voxels[position.x + position.y * xSize + position.z * xSize * ySize];
+            return voxels[position.x + position.y * sideSize + position.z * squaredSize];
         }
 
         public int GetVoxel(int x, int y, int z)
         {
-            return voxels[x + y * xSize + z * xSize * ySize];
+            return voxels[x + y * sideSize + z * squaredSize];
         }
 
         public NativeArray<uint> GetVoxelBuffer()
         {
-            NativeArray<uint> voxelBuffer = new NativeArray<uint>(xSize * xSize * 8, Allocator.Persistent);
-            for (int x = 0; x < xSize; x++)
+            NativeArray<uint> voxelBuffer = new NativeArray<uint>(squaredSize * (sideSize/4), Allocator.Persistent);
+            for (int x = 0; x < sideSize; x++)
             {
-                for (int y = 0; y < ySize; y++)
+                for (int y = 0; y < sideSize; y++)
                 {
-                    for (int z = 0; z < zSize; z++)
+                    for (int z = 0; z < sideSize; z++)
                     {
-                        int bufferIndex = x + y * ySize + (z / 4 * xSize * xSize);
-                        uint voxel = voxels[x + y * ySize + (z * xSize * xSize)];
-                        voxelBuffer[bufferIndex] |= voxel << (z*8)%32;
+                        int bufferIndex = x + y * sideSize + (z / 4 * squaredSize);
+                        uint voxel = voxels[x + y * sideSize + (z * squaredSize)];
+                        voxelBuffer[bufferIndex] |= voxel << z*(sideSize/4)%sideSize;
                     }
                 }
             }
@@ -58,20 +58,28 @@ namespace VoxelEngine.Example
 
         private void GenerateVoxels()
         {
-            voxels = new NativeArray<byte>(size, Allocator.Persistent);
+            voxels = new NativeArray<byte>(volumeSize, Allocator.Persistent);
 
-            for (int i = 0; i < xSize; i++)
+            for (int i = 0; i < sideSize; i++)
             {
-                for (int j = 0; j < ySize; j++)
+                for (int j = 0; j < sideSize; j++)
                 {
-                    for (int k = 0; k < zSize; k++)
+                    for (int k = 0; k < sideSize; k++)
                     {
                         byte value = PerlinNoise3D(i * scale, j * scale, k * scale);
+                        if (i == 0 || j==0 || k == 0)
+                        {
+                            value = 0;
+                        }
+                        if (i == sideSize-1 || j==sideSize-1 || k == sideSize-1)
+                        {
+                            value = 0;
+                        }
                         if (value > 0)
                         {
-                            value = (byte)(j + 1);
+                            value = (byte)(j);
                         }
-                        voxels[i + (j * xSize) + (k * ySize * xSize)] = value;
+                        voxels[i + (j * sideSize) + (k * squaredSize)] = value;
                     }
                 }
             }
@@ -79,21 +87,21 @@ namespace VoxelEngine.Example
 
         private void CalculateBitMatrix()
         {
-            bitMatrix = new NativeArray<ulong>(xSize * ySize * 3, Allocator.Persistent);
-            int chunkSize = xSize * xSize;
-            for (int x = 0; x < xSize; x++)
+            bitMatrix = new NativeArray<ulong>(squaredSize * 3, Allocator.Persistent);
+            int chunkSize = squaredSize;
+            for (int x = 0; x < sideSize; x++)
             {
-                for (int y = 0; y < ySize; y++)
+                for (int y = 0; y < sideSize; y++)
                 {
-                    for (int z = 0; z < zSize; z++)
+                    for (int z = 0; z < sideSize; z++)
                     {
-                        bool isSolid = voxels[x + (y * xSize) + (z * ySize * xSize)] != 0;
+                        bool isSolid = voxels[x + (y * sideSize) + (z * squaredSize)] != 0;
                         if (!isSolid)
                             continue;
 
-                        bitMatrix[z + (y * xSize)] |= 1UL << x;
-                        bitMatrix[x + (z * xSize) + chunkSize] |= 1UL << y;
-                        bitMatrix[x + (y * xSize) + chunkSize * 2] |= 1UL << z;
+                        bitMatrix[z + (y * sideSize)] |= 1UL << x;
+                        bitMatrix[x + (z * sideSize) + chunkSize] |= 1UL << y;
+                        bitMatrix[x + (y * sideSize) + chunkSize * 2] |= 1UL << z;
                     }
                 }
             }
@@ -109,11 +117,11 @@ namespace VoxelEngine.Example
             float zy = Mathf.PerlinNoise(z, y);
             float zx = Mathf.PerlinNoise(z, x);
             float value = ((xy + yz + xz + yx + zy + zx) / 6f);
-            if (value < 0.5f )
-            {
-                return 0;
-            }
-
+            // if (value < 0.5f )
+            // {
+            //     return 0;
+            // }
+            
             return 1;
         }
     }
