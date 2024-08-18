@@ -27,6 +27,7 @@ Shader "Custom/QuadAtlasMultiSprite"
             {
                 float2 uv : TEXCOORD0;
                 float4 vertex : SV_POSITION;
+                float4 globalVertex : TEXCOORD1;
             };
 
             sampler2D _MainTex;
@@ -37,6 +38,7 @@ Shader "Custom/QuadAtlasMultiSprite"
                 v2f o;
                 o.vertex = UnityObjectToClipPos(v.vertex);
                 o.uv = v.uv; // Pass through UV for now
+                o.globalVertex = v.vertex;
                 return o;
             }
 
@@ -46,15 +48,26 @@ Shader "Custom/QuadAtlasMultiSprite"
                 int height = 2;
                 int atlasSize = 16;
                 float atlasFragSize = 1.0/16.0;
-                int index1 = 17;
+                int index1 = 19;
                 int index2 = 54;
                 int index3 = 90;
                 int index4 = 242;
                 float2 uv = i.uv;
+                //uv = i.globalVertex;
 
+                if (frac(i.globalVertex.x) == 0)
+                {
+                    uv = i.globalVertex.zy;
+                }
+                else if (frac(i.globalVertex.y) == 0)
+                {
+                    uv = i.globalVertex.xz;
+                }
+                else if (frac(i.globalVertex.z) == 0)
+                {
+                    uv = i.globalVertex.xy;
+                }
                 
-                // Determine which part of the quad the fragment belongs to (0-1 range for each axis)
-                float2 localUV = frac(uv * _AtlasSize.xy);
 
                 // Determine which sprite to sample from based on original UV
                 float2 spriteOffset = float2(0.0, 0.0);
@@ -84,8 +97,7 @@ Shader "Custom/QuadAtlasMultiSprite"
                 float2 finalUV = spriteOffset + frac(uv * 2.0) * atlasFragSize;
                 
                 // Sample the atlas texture
-                fixed4 col = tex2D(_MainTex, finalUV);
-                return col;
+                return tex2D(_MainTex, finalUV);;
             }
             ENDCG
         }

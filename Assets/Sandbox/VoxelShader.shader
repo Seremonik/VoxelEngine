@@ -31,19 +31,13 @@ Shader "Custom/DebugVoxelTextureAtlas"
 
             struct v2f
             {
-                float3 worldPos : TEXCOORD2;
+                float3 localPos : TEXCOORD2;
                 float3 worldNormal : TEXCOORD1;
-                float2 uv : TEXCOORD0;
                 float4 pos : SV_POSITION;
                 SHADOW_COORDS(3)
             };
             
-            struct Voxel
-            {
-                int encodedValues;
-            };
-            
-            StructuredBuffer<Voxel> voxelData;
+            StructuredBuffer<int> voxelBuffer;
             
             sampler2D _MainTex;
             float4 _Color;
@@ -59,24 +53,15 @@ Shader "Custom/DebugVoxelTextureAtlas"
                 faceIndex = float((packedData >> 18) & 0x7); // faceIndex
                 voxelId = float((packedData >> 26) & 0xFF); // voxelId
             }
-            
-            //Calculate UVs based on faceIndex and position
-            float2 CalculateUV(float4 vertex, float faceIndex)
+
+            float customMod2(float x)
             {
-                // Get local position in the voxel
-                float3 localPos = vertex.xyz;
-            
-                // Determine UV based on faceIndex
-                if (faceIndex == 0 || faceIndex == 1) // +X or -X
-                {
-                    return float2(localPos.z % 2, localPos.y % 2);
-                }
-                if (faceIndex == 2 || faceIndex == 3) // +Y or -Y
-                {
-                    return float2(localPos.x % 2, localPos.z % 2);
-                }
-                // +Z or -Z
-                return float2(localPos.x % 2, localPos.y % 2);
+                return x - 2 * floor(x / 2);
+            }
+
+            float customMod3(float x)
+            {
+                return x%2;
             }
 
             float2 CalculateAtlasOffset(float voxelId)
@@ -101,29 +86,84 @@ Shader "Custom/DebugVoxelTextureAtlas"
                 float3 pos;
                 float faceIndex, voxelId;
                 UnpackVertexData(v.encodedData, pos, faceIndex, voxelId);
-                
+                // voxelId = voxelBuffer[30]&255;
+                // voxelId = 1;
                 float4 newPos = float4(pos,1);
                 
                 v2f o;
                 o.pos = UnityObjectToClipPos(newPos);
                 o.worldNormal = GetNormal(faceIndex);
-                o.worldPos = mul(unity_ObjectToWorld, newPos).xyz;
+                o.localPos = newPos.xyz;
 
                 TRANSFER_SHADOW(o);
-                // Calculate UV based on the tile index
-
-                float2 uv = CalculateUV(newPos, faceIndex);
-                float2 tileOffset = float2(fmod(voxelId, 1.0 / _TileSize.x) * _TileSize.x, 
-                                           floor(voxelId * _TileSize.x) * _TileSize.y);
-                o.uv = uv * _TileSize.xy + tileOffset;
-
                 return o;
             }
 
+            int3 roundUp(float3 inputValue)
+            {
+                const float epsilon = 1 - 1e-3; // A small value to adjust precision
+
+                const int3 result = frac(inputValue) >= epsilon ? ceil(inputValue) : floor(inputValue); 
+                return result;
+            }
+            
+            int getVoxelId(int3 voxelPos, int face)
+            {
+                if (face == 0)
+                {
+                    voxelPos.x -= 1;
+                }
+                else if (face == 2)
+                {
+                    voxelPos.y -= 1;
+                }
+                else if (face == 4)
+                {
+                    voxelPos.z -= 1;
+                }
+
+                //voxelPos = int3(23,0,0);
+                // int voxel = voxelBuffer[voxelPos.x + voxelPos.y * 32 + (voxelPos.z / 4 * 32 * 32)] >> (voxelPos.z*8)%32;
+                // voxel &= 255;
+                int voxel = voxelBuffer[voxelPos.x + voxelPos.y * 32 + (voxelPos.z * 32 * 32)];
+                //voxel &= 255;
+                //voxel = voxelBuffer[605] & 255;
+                if (voxelPos.x == 32)
+                {
+                    voxel= 250;
+                }
+                return voxel;
+            }
+            
             fixed4 frag (v2f i) : SV_Target
             {
-                Voxel voxel = voxelData[0]; // Example access; adjust indexing as needed
-                fixed4 texColor = tex2D(_MainTex, i.uv) * _Color;
+                float2 uv;
+                float epsilon =  1 - 1e-6;
+                int voxelId;
+                int3 voxelPos = roundUp(i.localPos);
+                
+                if (abs(i.worldNormal.x) >  epsilon )
+                {
+                    uv = i.localPos.zy;
+                    voxelId = getVoxelId(voxelPos, i.worldNormal.x > 0 ? 0 : 1);
+                }
+                else if (abs(i.worldNormal.y) >  epsilon)
+                {
+                    uv = i.localPos.xz;
+                    voxelId = getVoxelId(voxelPos, i.worldNormal.y > 0 ? 2 : 3);
+                }
+                else if (abs(i.worldNormal.z) >  epsilon)
+                {
+                    uv = i.localPos.xy;
+                    voxelId = getVoxelId(voxelPos, i.worldNormal.z > 0 ? 4 : 5);
+                }
+
+                 float2 spriteOffset = float2((voxelId%16) * 0.0625, (voxelId / 16) * 0.0625);
+                 uv = spriteOffset + frac(uv)/16;
+                //return fixed4(uv, 0, 1);
+                //int voxelId = voxelData[0]&255;
+                
+                fixed4 texColor = tex2D(_MainTex, uv) * _Color;
 
                 // Apply lighting
                 fixed3 ambient = UNITY_LIGHTMODEL_AMBIENT.rgb * texColor.rgb;

@@ -37,20 +37,33 @@ namespace VoxelEngine.Example
             return voxels[x + y * xSize + z * xSize * ySize];
         }
 
-        public NativeArray<int> GetVoxelBuffer()
+        public NativeArray<uint> GetVoxelBuffer()
         {
-            NativeArray<int> voxelBuffer = new NativeArray<int>(xSize * xSize * 8, Allocator.Persistent);
+            NativeArray<uint> voxelBuffer = new NativeArray<uint>(xSize * xSize * 32, Allocator.Persistent);
+            // for (int x = 0; x < xSize; x++)
+            // {
+            //     for (int y = 0; y < ySize; y++)
+            //     {
+            //         for (int z = 0; z < zSize; z++)
+            //         {
+            //             int bufferIndex = x + y * ySize + (z / 4 * xSize * xSize);
+            //             uint voxel = voxels[x + y * ySize + (z * xSize * xSize)];
+            //             voxelBuffer[bufferIndex] |= voxel << (z*8)%32;
+            //         }
+            //     }
+            // }
+
             for (int x = 0; x < xSize; x++)
             {
                 for (int y = 0; y < ySize; y++)
                 {
-                    for (int z = 0; z < zSize; z++)
+                    for (int z = 0; z < 32; z++)
                     {
-                        voxelBuffer[x + y * ySize + (z / 4 * xSize * xSize)] |=
-                            voxels[x + y * ySize + (z * xSize * xSize)] << (z*8)%32;
+                        voxelBuffer[x + y * xSize + z * xSize * ySize] = (byte)(y+1);
                     }
                 }
             }
+
 
             return voxelBuffer;
         }
@@ -65,7 +78,12 @@ namespace VoxelEngine.Example
                 {
                     for (int k = 0; k < zSize; k++)
                     {
-                        voxels[i + (j * xSize) + (k * ySize * xSize)] = PerlinNoise3D(i * scale, j * scale, k * scale);
+                        byte value = PerlinNoise3D(i * scale, j * scale, k * scale);
+                        if (value > 0)
+                        {
+                            value = (byte)(j + 1);
+                        }
+                        voxels[i + (j * xSize) + (k * ySize * xSize)] = value;
                     }
                 }
             }
@@ -102,8 +120,13 @@ namespace VoxelEngine.Example
             float yx = Mathf.PerlinNoise(y * 2, x);
             float zy = Mathf.PerlinNoise(z, y);
             float zx = Mathf.PerlinNoise(z, x);
+            float value = ((xy + yz + xz + yx + zy + zx) / 6f);
+            if (value < 0.5f )
+            {
+                return 0;
+            }
 
-            return ((xy + yz + xz + yx + zy + zx) / 6f) >= 0.5f ? (byte)1 : (byte)0;
+            return 1;
         }
     }
 }

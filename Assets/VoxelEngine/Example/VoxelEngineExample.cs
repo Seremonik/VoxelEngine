@@ -15,7 +15,7 @@ namespace VoxelEngine.Example
         private MeshRenderer meshRenderer1;
         private void Start()
         {
-            GenerateMeshNaive();
+            //GenerateMeshNaive();
             GenerateMeshBinary();
         }
 
@@ -33,16 +33,16 @@ namespace VoxelEngine.Example
         }
         
         public ComputeBuffer voxelBuffer;
-        public Shader voxelShader;
         private Material voxelMaterial;
+
         private void GenerateMeshBinary()
         {
             IVoxelsGenerator voxelsesGenerator = new ExampleVoxelsGenerator(32,32,32);
             IMeshGenerator meshGenerator = new BinaryMeshGenerator();
-            voxelBuffer = new ComputeBuffer(32 * 32 * 8, sizeof(int));
+            voxelBuffer = new ComputeBuffer(32 * 32 * 32, System.Runtime.InteropServices.Marshal.SizeOf(typeof(int)), ComputeBufferType.Default);
             voxelBuffer.SetData(voxelsesGenerator.GetVoxelBuffer());
             voxelMaterial = Instantiate(meshRenderer1.sharedMaterial);
-            voxelMaterial.SetBuffer(13, voxelBuffer);
+            voxelMaterial.SetBuffer("voxelBuffer", voxelBuffer);
             var chunk = new ChunkData()
             {
                 Voxels = voxelsesGenerator.Voxels,

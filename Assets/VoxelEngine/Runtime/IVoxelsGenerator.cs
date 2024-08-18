@@ -11,6 +11,6 @@ namespace VoxelEngine
         int GetVoxel(int x, int y, int z);
 
         NativeArray<ulong> BitMatrix { get; }
-        NativeArray<int> GetVoxelBuffer();
+        NativeArray<uint> GetVoxelBuffer();
     }
 }
