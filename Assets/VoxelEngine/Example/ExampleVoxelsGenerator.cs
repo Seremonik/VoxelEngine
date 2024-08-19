@@ -117,10 +117,10 @@ namespace VoxelEngine.Example
             float zy = Mathf.PerlinNoise(z, y);
             float zx = Mathf.PerlinNoise(z, x);
             float value = ((xy + yz + xz + yx + zy + zx) / 6f);
-            // if (value < 0.5f )
-            // {
-            //     return 0;
-            // }
+            if (value < 0.5f )
+            {
+                return 0;
+            }
             
             return 1;
         }
