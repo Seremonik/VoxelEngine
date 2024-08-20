@@ -40,7 +40,7 @@ namespace VoxelEngine.Example
 
         private void GenerateMeshBinary()
         {
-            var mesh = meshGenerator.BuildChunkMesh(chunkData);
+            var mesh = meshGenerator.BuildChunkMesh(chunkData, meshFilter.mesh);
             meshFilter.mesh = mesh;
         }
         
