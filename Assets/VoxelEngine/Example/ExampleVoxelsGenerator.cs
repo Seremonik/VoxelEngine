@@ -8,7 +8,7 @@ namespace VoxelEngine.Example
 {
     public class ExampleVoxelsGenerator : IVoxelsGenerator
     {
-        private ushort sideSize;
+        private int sideSize;
         private int volumeSize;
         private int squaredSize;
         private float scale = 0.06f;
@@ -18,7 +18,7 @@ namespace VoxelEngine.Example
         private NativeArray<byte> voxels;
         private NativeArray<ulong> bitMatrix;
 
-        public ExampleVoxelsGenerator(ushort sideSize)
+        public ExampleVoxelsGenerator(int sideSize)
         {
             this.sideSize = sideSize;
             volumeSize = sideSize * sideSize * sideSize;

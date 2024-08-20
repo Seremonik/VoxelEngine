@@ -1,7 +1,9 @@
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
+using Unity.Profiling;
 using UnityEngine;
+using UnityEngine.Profiling;
 using UnityEngine.Rendering;
 
 namespace VoxelEngine
@@ -24,26 +26,39 @@ namespace VoxelEngine
         public NativeList<int> Triangles;
         public NativeList<uint> Verts;
         public NativeArray<ulong> CullingBitMatrix;
+        public NativeArray<ulong> TransposeMatrixLookupTable;
         private int vertexCount;
 
+        public ProfilerMarker SideMatrixMarker;
+        public ProfilerMarker TransposingMatrixMarker;
+        public ProfilerMarker GreedyMeshMarker;
+        
         public void Execute()
         {
             vertexCount = 0;
 
-            GenerateSidesBitMatrix(BitMatrix, CullingBitMatrix);
-            TransposeCullingMatrices(CullingBitMatrix);
+            GenerateSidesBitMatrix(BitMatrix, CullingBitMatrix, SideMatrixMarker);
+            TransposeCullingMatrices(CullingBitMatrix, TransposingMatrixMarker, TransposeMatrixLookupTable);
+            GreedyMeshMarker.Begin();
             for (int i = 0; i < 6; i++)
             {
                 var sideSlice = new NativeSlice<ulong>(CullingBitMatrix,
-                    i * VoxelEngineConstants.CHUNK_VOXEL_SIZE * VoxelEngineConstants.CHUNK_VOXEL_SIZE,
-                    VoxelEngineConstants.CHUNK_VOXEL_SIZE * VoxelEngineConstants.CHUNK_VOXEL_SIZE);
+                    i * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED,
+                    VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED);
                 vertexCount = GreedyMesh(sideSlice, (SideOrientation)i, Triangles, Verts, vertexCount);
             }
+            GreedyMeshMarker.End();
         }
 
-        private static void GenerateSidesBitMatrix(NativeArray<ulong> bitMatrix, NativeArray<ulong> cullingBitMatrix)
+        /// <summary>
+        /// This function Gets all the visible sides.
+        /// </summary>
+        /// <param name="bitMatrix"></param>
+        /// <param name="cullingBitMatrix"></param>
+        private static void GenerateSidesBitMatrix(NativeArray<ulong> bitMatrix, NativeArray<ulong> cullingBitMatrix, ProfilerMarker SideMatrix)
         {
-            int sizeSquare = VoxelEngineConstants.CHUNK_VOXEL_SIZE * VoxelEngineConstants.CHUNK_VOXEL_SIZE;
+            SideMatrix.Begin();
+            int sizeSquare = VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED;
 
             for (int i = 0; i < sizeSquare; i++)
             {
@@ -55,6 +70,7 @@ namespace VoxelEngine
                                                                          ~(bitMatrix[i + sizeSquare * faces] << 1);
                 }
             }
+            SideMatrix.End();
         }
 
         private static int GreedyMesh(NativeSlice<ulong> cullingBitMatrix, SideOrientation sideOrientation,
@@ -207,8 +223,9 @@ namespace VoxelEngine
             Triangles.Add(vertexCount + 2);
         }
 
-        private static void TransposeCullingMatrices(NativeArray<ulong> cullingBitMatrix)
+        private static void TransposeCullingMatrices(NativeArray<ulong> cullingBitMatrix, ProfilerMarker marker, NativeArray<ulong> transponseMatrixLookupTable)
         {
+            marker.Begin();
             NativeSlice<ulong> tempSlice;
 
             for (int sides = 0; sides < 6; sides++)
@@ -216,28 +233,30 @@ namespace VoxelEngine
                 for (int i = 0; i < VoxelEngineConstants.CHUNK_VOXEL_SIZE; i++)
                 {
                     tempSlice = new NativeSlice<ulong>(cullingBitMatrix,
-                        i * VoxelEngineConstants.CHUNK_VOXEL_SIZE + sides * VoxelEngineConstants.CHUNK_VOXEL_SIZE *
-                        VoxelEngineConstants.CHUNK_VOXEL_SIZE,
+                        i * VoxelEngineConstants.CHUNK_VOXEL_SIZE + sides * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED,
                         VoxelEngineConstants.CHUNK_VOXEL_SIZE);
-                    TransposeMatrix(tempSlice);
+                    Transpose64x64Matrix(tempSlice, transponseMatrixLookupTable);
                 }
             }
+            marker.End();
         }
 
-        private static void TransposeMatrix(NativeSlice<ulong> bitMatrix)
+        private static void Transpose64x64Matrix(NativeSlice<ulong> bitMatrix, NativeArray<ulong> transposeMatrixLookupTable)
         {
-            for (var i = 0; i < 64; i++)
+            int i, p, s, idx0, idx1;
+            ulong x, y;
+            for (int j = 5; j >= 0; j--)
             {
-                for (var j = i + 1; j < 64; j++)
+                s = 1 << j;
+                for (p = 0; p < 32 / s; p++)
+                for (i = 0; i < s; i++)
                 {
-                    // Extract the bits at (i, j) and (j, i)
-                    ulong bit1 = (bitMatrix[i] >> j) & 1UL;
-                    ulong bit2 = (bitMatrix[j] >> i) & 1UL;
-
-                    // Swap the bits if they are different
-                    if (bit1 == bit2) continue;
-                    bitMatrix[i] ^= (1UL << j);
-                    bitMatrix[j] ^= (1UL << i);
+                    idx0 = (p * 2 * s + i);
+                    idx1 = (p * 2 * s + i + s);
+                    x = (bitMatrix[idx0] & transposeMatrixLookupTable[j]) | ((bitMatrix[idx1] & transposeMatrixLookupTable[j]) << s);
+                    y = ((bitMatrix[idx0] & transposeMatrixLookupTable[j + 6]) >> s) | (bitMatrix[idx1] & transposeMatrixLookupTable[j + 6]);
+                    bitMatrix[idx0] = x;
+                    bitMatrix[idx1] = y;
                 }
             }
         }
@@ -257,18 +276,38 @@ namespace VoxelEngine
             return packedData;
         }
     }
-
+    
     public class BinaryMeshGenerator : IMeshGenerator
     {
-        private int trianglesCount = 0;
-
         private NativeList<int> triangles;
-        private NativeList<uint> verts = new(Allocator.Persistent);
-
+        private NativeList<uint> verts;
+        private NativeArray<ulong> transposeMatrixLookupTable;
+ 
+        public BinaryMeshGenerator()
+        {
+            verts = new(Allocator.Persistent);
+            triangles = new NativeList<int>(Allocator.Persistent);
+            transposeMatrixLookupTable = new NativeArray<ulong>(12, Allocator.Persistent)
+            {
+                [0] = 0x5555555555555555UL,
+                [1] = 0x3333333333333333UL,
+                [2] = 0x0F0F0F0F0F0F0F0FUL,
+                [3] = 0x00FF00FF00FF00FFUL,
+                [4] = 0x0000FFFF0000FFFFUL,
+                [5] = 0x00000000FFFFFFFFUL,
+                [6] = 0xAAAAAAAAAAAAAAAAUL,
+                [7] = 0xCCCCCCCCCCCCCCCCUL,
+                [8] = 0xF0F0F0F0F0F0F0F0UL,
+                [9] = 0xFF00FF00FF00FF00UL,
+                [10] = 0xFFFF0000FFFF0000UL,
+                [11] = 0xFFFFFFFF00000000UL,
+            };
+        }
+        
         public Mesh BuildChunkMesh(ChunkData chunkData, Mesh mesh = null)
         {
-            triangles = new NativeList<int>(Allocator.Persistent);
-            verts = new NativeList<uint>(Allocator.Persistent);
+            triangles.Clear();
+            verts.Clear();
 
             if (!mesh)
                 mesh = new Mesh();
@@ -276,6 +315,10 @@ namespace VoxelEngine
 
             var job = new BinaryMeshingJob()
             {
+                TransposeMatrixLookupTable = transposeMatrixLookupTable,
+                GreedyMeshMarker = new ProfilerMarker("Greedy meshing"),
+                SideMatrixMarker = new ProfilerMarker("SideMatrix"),
+                TransposingMatrixMarker = new ProfilerMarker("Transposing"),
                 Triangles = triangles,
                 Verts = verts,
                 BitMatrix = chunkData.BitMatrix,
@@ -288,6 +331,7 @@ namespace VoxelEngine
             handle.Complete();
             job.CullingBitMatrix.Dispose();
 
+            Profiler.BeginSample("Set Mesh XD");
             var layout = new[]
             {
                 new VertexAttributeDescriptor(VertexAttribute.TexCoord0, VertexAttributeFormat.UInt32, 1),
@@ -308,7 +352,7 @@ namespace VoxelEngine
                     VoxelEngineConstants.CHUNK_VOXEL_SIZE / 2f),
                 new Vector3(VoxelEngineConstants.CHUNK_VOXEL_SIZE, VoxelEngineConstants.CHUNK_VOXEL_SIZE,
                     VoxelEngineConstants.CHUNK_VOXEL_SIZE));
-
+            Profiler.EndSample();
             return mesh;
         }
     }
