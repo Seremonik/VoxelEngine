@@ -23,10 +23,12 @@ namespace VoxelEngine
     {
         [ReadOnly]
         public NativeArray<ulong> BitMatrix;
+        [ReadOnly]
+        public NativeArray<ulong> TransposeMatrixLookupTable;
+        
         public NativeList<int> Triangles;
         public NativeList<uint> Verts;
         public NativeArray<ulong> CullingBitMatrix;
-        public NativeArray<ulong> TransposeMatrixLookupTable;
         private int vertexCount;
 
         public ProfilerMarker SideMatrixMarker;
@@ -146,59 +148,59 @@ namespace VoxelEngine
         }
 
         private static void DrawFace(int x, int y, int z, int width, int height, SideOrientation sideOrientation,
-            NativeList<uint> Verts,
-            NativeList<int> Triangles, int vertexCount)
+            NativeList<uint> verts,
+            NativeList<int> triangles, int vertexCount)
         {
             switch (sideOrientation)
             {
                 case SideOrientation.Left: //Left
-                    Verts.Add(EncodeValue(sideOrientation, x , y, z));
-                    Verts.Add(EncodeValue(sideOrientation, x , y, z + width));
-                    Verts.Add(EncodeValue(sideOrientation, x, y + height, z + width));
-                    Verts.Add(EncodeValue(sideOrientation, x, y + height, z));
-                    FrontFace(Triangles, vertexCount);
+                    verts.Add(EncodeValue(sideOrientation, x , y, z));
+                    verts.Add(EncodeValue(sideOrientation, x , y, z + width));
+                    verts.Add(EncodeValue(sideOrientation, x, y + height, z + width));
+                    verts.Add(EncodeValue(sideOrientation, x, y + height, z));
+                    FrontFace(triangles, vertexCount);
                     break;
 
                 case SideOrientation.Right: //Right
-                    Verts.Add(EncodeValue(sideOrientation, x + 1, y, z));
-                    Verts.Add(EncodeValue(sideOrientation, x + 1, y, z + width));
-                    Verts.Add(EncodeValue(sideOrientation, x + 1, y + height, z + width));
-                    Verts.Add(EncodeValue(sideOrientation, x + 1, y + height, z));
-                    BackFace(Triangles, vertexCount);
+                    verts.Add(EncodeValue(sideOrientation, x + 1, y, z));
+                    verts.Add(EncodeValue(sideOrientation, x + 1, y, z + width));
+                    verts.Add(EncodeValue(sideOrientation, x + 1, y + height, z + width));
+                    verts.Add(EncodeValue(sideOrientation, x + 1, y + height, z));
+                    BackFace(triangles, vertexCount);
 
                     break;
                 case SideOrientation.Top: //Top
-                    Verts.Add(EncodeValue(sideOrientation, z, x + 1, y));
-                    Verts.Add(EncodeValue(sideOrientation, z, x + 1, y + height));
-                    Verts.Add(EncodeValue(sideOrientation, z + width, x + 1, y + height));
-                    Verts.Add(EncodeValue(sideOrientation, z + width, x + 1, y));
+                    verts.Add(EncodeValue(sideOrientation, z, x + 1, y));
+                    verts.Add(EncodeValue(sideOrientation, z, x + 1, y + height));
+                    verts.Add(EncodeValue(sideOrientation, z + width, x + 1, y + height));
+                    verts.Add(EncodeValue(sideOrientation, z + width, x + 1, y));
                     
-                    FrontFace(Triangles, vertexCount);
+                    FrontFace(triangles, vertexCount);
                     break;
                 case SideOrientation.Bottom: //Bottom
-                    Verts.Add(EncodeValue(sideOrientation, z, x, y));
-                    Verts.Add(EncodeValue(sideOrientation, z, x, y + height));
-                    Verts.Add(EncodeValue(sideOrientation, z + width, x, y + height));
-                    Verts.Add(EncodeValue(sideOrientation, z + width, x, y));
+                    verts.Add(EncodeValue(sideOrientation, z, x, y));
+                    verts.Add(EncodeValue(sideOrientation, z, x, y + height));
+                    verts.Add(EncodeValue(sideOrientation, z + width, x, y + height));
+                    verts.Add(EncodeValue(sideOrientation, z + width, x, y));
                     
-                     BackFace(Triangles, vertexCount);
+                     BackFace(triangles, vertexCount);
 
                     break;
                 case SideOrientation.Front: //Front
-                    Verts.Add(EncodeValue(sideOrientation, z, y, x));
-                    Verts.Add(EncodeValue(sideOrientation, z, y + height, x));
-                    Verts.Add(EncodeValue(sideOrientation, z + width, y + height, x));
-                    Verts.Add(EncodeValue(sideOrientation, z + width, y, x));
+                    verts.Add(EncodeValue(sideOrientation, z, y, x));
+                    verts.Add(EncodeValue(sideOrientation, z, y + height, x));
+                    verts.Add(EncodeValue(sideOrientation, z + width, y + height, x));
+                    verts.Add(EncodeValue(sideOrientation, z + width, y, x));
                     
-                    FrontFace(Triangles, vertexCount);
+                    FrontFace(triangles, vertexCount);
                     break;
                 case SideOrientation.Back: //Back
-                    Verts.Add(EncodeValue(sideOrientation, z, y, x+1));
-                    Verts.Add(EncodeValue(sideOrientation, z, y + height, x+1));
-                    Verts.Add(EncodeValue(sideOrientation, z + width, y + height, x+1));
-                    Verts.Add(EncodeValue(sideOrientation, z + width, y, x+1));
+                    verts.Add(EncodeValue(sideOrientation, z, y, x+1));
+                    verts.Add(EncodeValue(sideOrientation, z, y + height, x+1));
+                    verts.Add(EncodeValue(sideOrientation, z + width, y + height, x+1));
+                    verts.Add(EncodeValue(sideOrientation, z + width, y, x+1));
 
-                    BackFace(Triangles, vertexCount);
+                    BackFace(triangles, vertexCount);
                     break;
             }
         }
@@ -277,16 +279,14 @@ namespace VoxelEngine
         }
     }
     
-    public class BinaryMeshGenerator : IMeshGenerator
+    [CreateAssetMenu(fileName = "Binary Mesh Generator", menuName = "ScriptableObjects/Binary Mesh Generator", order = 1)]
+    public class BinaryMeshGenerator : ScriptableObject, IMeshGenerator
     {
-        private NativeList<int> triangles;
-        private NativeList<uint> verts;
         private NativeArray<ulong> transposeMatrixLookupTable;
  
         public BinaryMeshGenerator()
         {
-            verts = new(Allocator.Persistent);
-            triangles = new NativeList<int>(Allocator.Persistent);
+
             transposeMatrixLookupTable = new NativeArray<ulong>(12, Allocator.Persistent)
             {
                 [0] = 0x5555555555555555UL,
@@ -304,56 +304,73 @@ namespace VoxelEngine
             };
         }
         
-        public Mesh BuildChunkMesh(ChunkData chunkData, Mesh mesh = null)
+        // public Mesh BuildChunkMesh(ChunkData chunkData, Mesh mesh = null)
+        // {
+        //     if (!mesh)
+        //         mesh = new Mesh();
+        //     mesh.Clear();
+        //
+        //     var job = new BinaryMeshingJob()
+        //     {
+        //         TransposeMatrixLookupTable = transposeMatrixLookupTable,
+        //         GreedyMeshMarker = new ProfilerMarker("Greedy meshing"),
+        //         SideMatrixMarker = new ProfilerMarker("SideMatrix"),
+        //         TransposingMatrixMarker = new ProfilerMarker("Transposing"),
+        //         Triangles = chunkData.Triangles,
+        //         Verts = chunkData.Vertices,
+        //         BitMatrix = chunkData.BitMatrix,
+        //         CullingBitMatrix =
+        //             new NativeArray<ulong>(
+        //                 VoxelEngineConstants.CHUNK_VOXEL_SIZE * VoxelEngineConstants.CHUNK_VOXEL_SIZE * 6,
+        //                 Allocator.TempJob)
+        //     };
+        //     var handle = job.Schedule();
+        //     handle.Complete();
+        //     job.CullingBitMatrix.Dispose();
+        //
+        //     Profiler.BeginSample("Set Mesh XD");
+        //     var layout = new[]
+        //     {
+        //         new VertexAttributeDescriptor(VertexAttribute.TexCoord0, VertexAttributeFormat.UInt32, 1),
+        //     };
+        //     var vertexCount = chunkData.Vertices.Length;
+        //     var trisCount = chunkData.Triangles.Length;
+        //     //Verts
+        //     mesh.SetVertexBufferParams(vertexCount, layout);
+        //     mesh.SetVertexBufferData(chunkData.Vertices.AsArray(), 0, 0, vertexCount);
+        //
+        //     // Tris
+        //     mesh.SetIndexBufferParams(trisCount, IndexFormat.UInt32);
+        //     mesh.SetIndexBufferData(chunkData.Triangles.AsArray(), 0, 0, trisCount);
+        //
+        //     mesh.SetSubMesh(0, new SubMeshDescriptor(0, trisCount), MeshUpdateFlags.DontRecalculateBounds | MeshUpdateFlags.DontValidateIndices);
+        //     mesh.bounds = new Bounds(
+        //         new Vector3(VoxelEngineConstants.CHUNK_VOXEL_SIZE / 2f, VoxelEngineConstants.CHUNK_VOXEL_SIZE / 2f,
+        //             VoxelEngineConstants.CHUNK_VOXEL_SIZE / 2f),
+        //         new Vector3(VoxelEngineConstants.CHUNK_VOXEL_SIZE, VoxelEngineConstants.CHUNK_VOXEL_SIZE,
+        //             VoxelEngineConstants.CHUNK_VOXEL_SIZE));
+        //     Profiler.EndSample();
+        //     return mesh;
+        // }
+
+        public JobHandle ScheduleMeshGeneration(ChunkData chunkData, JobHandle dependency)
         {
-            triangles.Clear();
-            verts.Clear();
-
-            if (!mesh)
-                mesh = new Mesh();
-            mesh.Clear();
-
             var job = new BinaryMeshingJob()
             {
                 TransposeMatrixLookupTable = transposeMatrixLookupTable,
                 GreedyMeshMarker = new ProfilerMarker("Greedy meshing"),
                 SideMatrixMarker = new ProfilerMarker("SideMatrix"),
                 TransposingMatrixMarker = new ProfilerMarker("Transposing"),
-                Triangles = triangles,
-                Verts = verts,
+                Triangles = chunkData.Triangles,
+                Verts = chunkData.Vertices,
                 BitMatrix = chunkData.BitMatrix,
                 CullingBitMatrix =
                     new NativeArray<ulong>(
                         VoxelEngineConstants.CHUNK_VOXEL_SIZE * VoxelEngineConstants.CHUNK_VOXEL_SIZE * 6,
                         Allocator.TempJob)
             };
-            var handle = job.Schedule();
-            handle.Complete();
-            job.CullingBitMatrix.Dispose();
-
-            Profiler.BeginSample("Set Mesh XD");
-            var layout = new[]
-            {
-                new VertexAttributeDescriptor(VertexAttribute.TexCoord0, VertexAttributeFormat.UInt32, 1),
-            };
-            var vertexCount = verts.Length;
-            var trisCount = triangles.Length;
-            //Verts
-            mesh.SetVertexBufferParams(vertexCount, layout);
-            mesh.SetVertexBufferData(verts.AsArray(), 0, 0, vertexCount);
-
-            // Tris
-            mesh.SetIndexBufferParams(trisCount, IndexFormat.UInt32);
-            mesh.SetIndexBufferData(triangles.AsArray(), 0, 0, trisCount);
-
-            mesh.SetSubMesh(0, new SubMeshDescriptor(0, trisCount), MeshUpdateFlags.DontRecalculateBounds);
-            mesh.bounds = new Bounds(
-                new Vector3(VoxelEngineConstants.CHUNK_VOXEL_SIZE / 2f, VoxelEngineConstants.CHUNK_VOXEL_SIZE / 2f,
-                    VoxelEngineConstants.CHUNK_VOXEL_SIZE / 2f),
-                new Vector3(VoxelEngineConstants.CHUNK_VOXEL_SIZE, VoxelEngineConstants.CHUNK_VOXEL_SIZE,
-                    VoxelEngineConstants.CHUNK_VOXEL_SIZE));
-            Profiler.EndSample();
-            return mesh;
+            return job.Schedule(dependency);
         }
+        
     }
 }

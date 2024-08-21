@@ -1,15 +1,20 @@
+using System;
 using Unity.Collections;
+using Unity.Mathematics;
 using UnityEngine;
 
 namespace VoxelEngine
 {
-    public struct ChunkData
+    public class ChunkData : IDisposable
     {
         public NativeArray<byte> Voxels;
         public NativeArray<ulong> BitMatrix;
-        public Vector3Int ChunkPosition;
+        public NativeArray<uint> VoxelBuffer;
+        public int3 ChunkPosition;
         public Vector3 PivotPosition;
         public Mesh Mesh;
+        public NativeList<int> Triangles;
+        public NativeList<uint> Vertices;
 
         public bool IsDirty;
         public bool RequiresSaving;
@@ -19,5 +24,19 @@ namespace VoxelEngine
         public bool HasBottomWall;
         public bool HasFrontWall;
         public bool HasBackWall;
+
+        public ChunkData(int x, int y, int z)
+        {
+            ChunkPosition = new int3(x, y, z);
+        }
+        
+        public void Dispose()
+        {
+            Voxels.Dispose();
+            BitMatrix.Dispose();
+            VoxelBuffer.Dispose();
+            Triangles.Dispose();
+            Vertices.Dispose();
+        }
     }
 }

@@ -13,6 +13,7 @@ namespace VoxelEngine
         public int ZChunkSize;
         public float VoxelScale;
         [Header("World")]
+        public int WorldRadius;
         public int XWorldSize;
         public int YWorldSize;
         public int ZWorldSize;
