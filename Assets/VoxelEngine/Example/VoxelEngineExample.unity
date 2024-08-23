@@ -563,7 +563,7 @@ Camera:
     width: 1
     height: 1
   near clip plane: 0.3
-  far clip plane: 1000
+  far clip plane: 10000
   field of view: 60
   orthographic: 0
   orthographic size: 5
@@ -1314,7 +1314,7 @@ PrefabInstance:
         type: 3}
       propertyPath: meshGenerator._objectValue
       value: 
-      objectReference: {fileID: 11400000, guid: e397047011a027543946d5690a21fc6d,
+      objectReference: {fileID: 11400000, guid: e6e3b8f3202b04341a87cf73da2848bd,
         type: 2}
     - target: {fileID: 6094820541432716526, guid: eff60419bed79dc4caf5a06005abce37,
         type: 3}

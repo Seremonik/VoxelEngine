@@ -59,6 +59,8 @@ namespace VoxelEngine
             
             voxelBuffer.SetData(ChunkData.VoxelBuffer);
             voxelMaterial.SetBuffer("voxelBuffer", voxelBuffer);
+            ChunkData.VoxelBuffer.Dispose();
+            ChunkData.BitMatrix.Dispose();
             meshFilter.mesh = mesh;
             //ChunkData.Vertices.Clear();
             //ChunkData.Triangles.Clear();

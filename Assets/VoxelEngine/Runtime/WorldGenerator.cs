@@ -19,10 +19,12 @@ namespace VoxelEngine
         [SerializeField]
         private bool initializeOnStart;
 
-        private List<ChunkGameObject> scheduledChunks = new ();
-        private Queue<ChunkGameObject> pooledChunks = new ();
-        
+        private List<ChunkGameObject> scheduledChunks = new();
+        private Queue<ChunkGameObject> pooledChunks = new();
+        private Queue<int3> scheduledChunksCreation = new();
+
         private bool isInitialized;
+        private int jobsScheduledCount = 0;
 
         private Dictionary<int3, ChunkGameObject> visibleChunks = new();
 
@@ -34,11 +36,20 @@ namespace VoxelEngine
             }
         }
 
+        private void Update()
+        {
+            for (int i = 0; scheduledChunksCreation.Count > 0 && i < engineSettings.MaxJobsPerFrame; i++)
+            {
+                int3 pos = scheduledChunksCreation.Dequeue();
+                GenerateChunk(pos.x, pos.z);
+            }
+        }
+
         private void LateUpdate()
         {
             for (int i = scheduledChunks.Count - 1; i >= 0; i--)
             {
-                if (!scheduledChunks[i].GenerationJobHandle.IsCompleted) 
+                if (!scheduledChunks[i].GenerationJobHandle.IsCompleted)
                     continue;
                 var chunk = scheduledChunks[i];
                 chunk.GenerationJobHandle.Complete();
@@ -50,7 +61,8 @@ namespace VoxelEngine
 
         public void GenerateWorld()
         {
-            SpiralOutward(engineSettings.WorldRadius, 0, 0, GenerateChunk);
+            SpiralOutward(engineSettings.WorldRadius, 0, 0,
+                (x, z) => scheduledChunksCreation.Enqueue(new int3(x, 0, z)));
         }
 
         private void GenerateChunk(int x, int z)
@@ -59,23 +71,27 @@ namespace VoxelEngine
             {
                 CreateNewChunkGameObject();
             }
+
             var freeChunk = pooledChunks.Dequeue();
-            freeChunk.transform.position = new Vector3(x*VoxelEngineConstants.CHUNK_VOXEL_SIZE,0,z*VoxelEngineConstants.CHUNK_VOXEL_SIZE);
-            freeChunk.SetChunkData(new ChunkData(x,0,z));
+            freeChunk.transform.position = new Vector3(x * (VoxelEngineConstants.CHUNK_VOXEL_SIZE-2), 0,
+                z * (VoxelEngineConstants.CHUNK_VOXEL_SIZE-2));
+            freeChunk.gameObject.name = $"Chunk({x}, {0},{z})";
+            freeChunk.SetChunkData(new ChunkData(x, 0, z));
             var voxelGenerationHandle = voxelsGenerator.Value.ScheduleChunkGeneration(freeChunk.ChunkData);
-            var meshGenerationHandle = meshGenerator.Value.ScheduleMeshGeneration(freeChunk.ChunkData, voxelGenerationHandle);
+            var meshGenerationHandle =
+                meshGenerator.Value.ScheduleMeshGeneration(freeChunk.ChunkData, voxelGenerationHandle);
 
             freeChunk.GenerationJobHandle = meshGenerationHandle;
             scheduledChunks.Add(freeChunk);
         }
-        
+
         public void Initialize()
         {
             if (isInitialized)
                 return;
-            
+
             int chunkAmount = (int)math.ceil(engineSettings.WorldRadius * engineSettings.WorldRadius * 3.14f);
-            
+
             for (int i = 0; i < chunkAmount; i++)
             {
                 CreateNewChunkGameObject();
@@ -88,7 +104,7 @@ namespace VoxelEngine
             chunk.Initialize();
             pooledChunks.Enqueue(chunk);
         }
-        
+
         void SpiralOutward(int radius, int centerX, int centerZ, Action<int, int> processPoint)
         {
             // Start at the center

@@ -13,6 +13,7 @@ namespace VoxelEngine
         public int ZChunkSize;
         public float VoxelScale;
         [Header("World")]
+        public int MaxJobsPerFrame; //Maximum Jobs that can be scheduled during one frame.
         public int WorldRadius;
         public int XWorldSize;
         public int YWorldSize;

@@ -9,14 +9,6 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e29ed5cad99f4539b4f1d76a7dbe76f0, type: 3}
-  m_Name: Engine Settings
+  m_Script: {fileID: 11500000, guid: 5531c1650e6d44ab8199b5b939fc5345, type: 3}
+  m_Name: Binary Mesh Generator AO
   m_EditorClassIdentifier: 
-  XChunkSize: 0
-  YChunkSize: 0
-  ZChunkSize: 0
-  VoxelScale: 0
-  WorldRadius: 40
-  XWorldSize: 0
-  YWorldSize: 0
-  ZWorldSize: 0

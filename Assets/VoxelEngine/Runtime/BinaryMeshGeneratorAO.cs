@@ -6,18 +6,8 @@ using UnityEngine;
 
 namespace VoxelEngine
 {
-    public enum SideOrientation
-    {
-        Right = 0,
-        Left = 1,
-        Top = 2,
-        Bottom = 3,
-        Back = 4,
-        Front = 5,
-    }
-
     [BurstCompile]
-    partial struct BinaryMeshingJob : IJob
+    partial struct BinaryMeshingAOJob : IJob
     {
         [ReadOnly]
         public NativeArray<ulong> BitMatrix;
@@ -259,11 +249,13 @@ namespace VoxelEngine
         private static uint EncodeValue(SideOrientation side, int x, int y, int z)
         {
             int faceId = (int)side;
+            
             // Ensure values are within the allowed range
             x &= 0x3F; // 6 bits (0-63)
             y &= 0x3F; // 6 bits (0-63)
             z &= 0x3F; // 6 bits (0-63)
             faceId &= 0x7; // 3 bits (0-7)
+
             //Bits taken: 21/32
             //change to byte
             uint packedData = (uint)(x) | ((uint)y << 6) | ((uint)z << 12) | ((uint)faceId << 18);
@@ -272,12 +264,12 @@ namespace VoxelEngine
         }
     }
     
-    [CreateAssetMenu(fileName = "Binary Mesh Generator", menuName = "ScriptableObjects/Binary Mesh Generator", order = 1)]
-    public class BinaryMeshGenerator : ScriptableObject, IMeshGenerator
+    [CreateAssetMenu(fileName = "Binary Mesh Generator AO", menuName = "ScriptableObjects/Binary Mesh Generator AO", order = 1)]
+    public class BinaryMeshGeneratorAO : ScriptableObject, IMeshGenerator
     {
         private NativeArray<ulong> transposeMatrixLookupTable;
  
-        public BinaryMeshGenerator()
+        public BinaryMeshGeneratorAO()
         {
 
             transposeMatrixLookupTable = new NativeArray<ulong>(12, Allocator.Persistent)
