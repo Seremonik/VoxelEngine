@@ -41,7 +41,7 @@ namespace VoxelEngine.Example
                             (x - 1 + (VoxelEngineConstants.CHUNK_VOXEL_SIZE - 2) * chunkOffset.x) * scale,
                             (y - 1 + (VoxelEngineConstants.CHUNK_VOXEL_SIZE - 2) * chunkOffset.y) * scale,
                             (z - 1 + (VoxelEngineConstants.CHUNK_VOXEL_SIZE - 2) * chunkOffset.z) * scale);
-                        byte value = perlinValue >= 0.5 ? (byte)176 : (byte)0;
+                        byte value = perlinValue >= 0.5 ? (byte)1: (byte)0;
                         // value = 1;
                         //
                         // if (x == 0 || y==0 || z == 0)

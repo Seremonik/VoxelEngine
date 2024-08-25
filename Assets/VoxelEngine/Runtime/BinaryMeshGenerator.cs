@@ -105,19 +105,19 @@ namespace VoxelEngine
                         startIndex = bitIndex;
 
                         currentMask = currentRow & (1UL << startIndex);
-                        //currentAmbientOcclusion = CalculateAO(i + faceNormal, j, bitIndex, cullingBitMatrix);
+                        currentAmbientOcclusion = CalculateAO(i + faceNormal, j, bitIndex, cullingBitMatrix);
 
                         cullingBitMatrix[i + j * VoxelEngineConstants.CHUNK_VOXEL_SIZE] &= ~(1UL << startIndex);
 
-                        for (++bitIndex; ; bitIndex++)
+                        for (; ; bitIndex++)
                         {
-                            //int4 tempAo = CalculateAO(i + faceNormal, j, bitIndex, cullingBitMatrix);
-                            if (((currentRow >> bitIndex) & 1UL) == 1 &&
-                                //tempAo.Equals(currentAmbientOcclusion) &&
-                                bitIndex < VoxelEngineConstants.CHUNK_VOXEL_SIZE - 1)
+                            int4 tempAo = CalculateAO(i + faceNormal, j, bitIndex+1, cullingBitMatrix);
+                            if (bitIndex < VoxelEngineConstants.CHUNK_VOXEL_SIZE - 1 &&
+                                    ((currentRow >> (bitIndex+1)) & 1UL) == 1 &&
+                                tempAo.Equals(currentAmbientOcclusion))
                             {
                                 width++;
-                                currentMask |= 1UL << bitIndex;
+                                currentMask |= 1UL << (bitIndex+1);
                                 cullingBitMatrix[i + j * VoxelEngineConstants.CHUNK_VOXEL_SIZE] &= ~(1UL << bitIndex);
                             }
                             else
@@ -125,9 +125,9 @@ namespace VoxelEngine
                                 for (int k = j + 1; ; k++)
                                 {
                                     currentRow = cullingBitMatrix[i + k * VoxelEngineConstants.CHUNK_VOXEL_SIZE];
-                                    if ((currentRow & currentMask) == currentMask &&
-                                        //HasSameAo(width, currentAmbientOcclusion, i, k, startIndex, cullingBitMatrix) &&
-                                        k < VoxelEngineConstants.CHUNK_VOXEL_SIZE - 1)
+                                    if (k < VoxelEngineConstants.CHUNK_VOXEL_SIZE - 1 &&
+                                            (currentRow & currentMask) == currentMask &&
+                                        HasSameAo(width, currentAmbientOcclusion, i+ faceNormal, k, startIndex, cullingBitMatrix))
                                     {
                                         height++;
                                         cullingBitMatrix[i + k * VoxelEngineConstants.CHUNK_VOXEL_SIZE] &= ~currentMask;
@@ -171,12 +171,11 @@ namespace VoxelEngine
 
         private static int4 CalculateAO(int i, int j, int bitIndex, NativeSlice<ulong> cullingBitMatrix)
         {
-            return new int4(1, 1, 1, 1);
-            int4 result = new int4();
+            int4 result = new int4(0,0,0,0);
             ulong topRow = cullingBitMatrix[i + (j + 1) * VoxelEngineConstants.CHUNK_VOXEL_SIZE];
             ulong middleRow = cullingBitMatrix[i + j * VoxelEngineConstants.CHUNK_VOXEL_SIZE];
             ulong bottomRow = cullingBitMatrix[i + (j - 1) * VoxelEngineConstants.CHUNK_VOXEL_SIZE];
-
+           
             result[0] = ((middleRow >> (bitIndex + 1)) & 1UL) == 0 ? 15 : 0;
             result[3] = result[0];
             result[1] = ((middleRow >> (bitIndex - 1)) & 1UL) == 0 ? 15 : 0;
@@ -209,8 +208,10 @@ namespace VoxelEngine
             {
                 result[3] += ((topRow >> (bitIndex + 1)) & 1UL) == 0 ? 15 : 0;
             }
-
-            return (result + 15) / 4;
+            
+            result += 15;
+            result /= 4;
+            return result;
         }
 
         private static void DrawFace(int x, int y, int z, int width, int height, SideOrientation sideOrientation,
