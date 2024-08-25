@@ -96,13 +96,13 @@ Material:
     m_Floats:
     - _AlphaClip: 0
     - _AlphaToMask: 0
-    - _AmbientBoost: 0.116
+    - _AmbientBoost: 0.231
     - _AtlasSize: 16
     - _Blend: 0
     - _BlendModePreserveSpecular: 1
     - _BumpScale: 1
-    - _ChunkSize: 64
-    - _ChunkSizeSquared: 4096
+    - _ChunkSize: 62
+    - _ChunkSizeSquared: 3844
     - _ClearCoatMask: 0
     - _ClearCoatSmoothness: 0
     - _Cull: 2

@@ -61,6 +61,7 @@ namespace VoxelEngine
 
         public void GenerateWorld()
         {
+            //scheduledChunksCreation.Enqueue(new int3(0, 0, 0));
             SpiralOutward(engineSettings.WorldRadius, 0, 0,
                 (x, z) => scheduledChunksCreation.Enqueue(new int3(x, 0, z)));
         }

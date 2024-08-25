@@ -22,7 +22,7 @@ namespace VoxelEngine
         {
             mesh = new Mesh();
             
-            voxelBuffer = new ComputeBuffer(VoxelEngineConstants.CHUNK_VOXEL_SIZE* VoxelEngineConstants.CHUNK_VOXEL_SIZE * (VoxelEngineConstants.CHUNK_VOXEL_SIZE/4), System.Runtime.InteropServices.Marshal.SizeOf(typeof(int)), ComputeBufferType.Default);
+            voxelBuffer = new ComputeBuffer((VoxelEngineConstants.CHUNK_VOXEL_SIZE-2)* (VoxelEngineConstants.CHUNK_VOXEL_SIZE-2) * (VoxelEngineConstants.CHUNK_VOXEL_SIZE/4), System.Runtime.InteropServices.Marshal.SizeOf(typeof(int)), ComputeBufferType.Default);
             
             voxelMaterial = Instantiate(meshRenderer.sharedMaterial);
             meshRenderer.material = voxelMaterial;

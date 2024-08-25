@@ -18,7 +18,7 @@ namespace VoxelEngine.Example
         public ProfilerMarker VoxelGenerationMarker;
         public ProfilerMarker VoxelBufferMarker;
         public ProfilerMarker BitMatrixMarker;
-        
+
         public void Execute()
         {
             GenerateVoxels(Voxels, ChunkOffset, 0.06f, VoxelGenerationMarker);
@@ -26,40 +26,45 @@ namespace VoxelEngine.Example
             CalculateBitMatrix(BitMatrix, Voxels, BitMatrixMarker);
         }
 
-        public static void GenerateVoxels(NativeArray<byte> voxels, int3 chunkOffset, float scale, ProfilerMarker voxelGenerationMarker)
+        public static void GenerateVoxels(NativeArray<byte> voxels, int3 chunkOffset, float scale,
+            ProfilerMarker voxelGenerationMarker)
         {
             voxelGenerationMarker.Begin();
 
-            for (int i = 0; i < VoxelEngineConstants.CHUNK_VOXEL_SIZE; i++)
+            for (int x = 0; x < VoxelEngineConstants.CHUNK_VOXEL_SIZE; x++)
             {
-                for (int j = 0; j < VoxelEngineConstants.CHUNK_VOXEL_SIZE; j++)
+                for (int y = 0; y < VoxelEngineConstants.CHUNK_VOXEL_SIZE; y++)
                 {
-                    for (int k = 0; k < VoxelEngineConstants.CHUNK_VOXEL_SIZE; k++)
+                    for (int z = 0; z < VoxelEngineConstants.CHUNK_VOXEL_SIZE; z++)
                     {
                         float perlinValue = PerlinNoise.Perlin3D(
-                            (i + (VoxelEngineConstants.CHUNK_VOXEL_SIZE - 1) * chunkOffset.x) * scale,
-                            (j + (VoxelEngineConstants.CHUNK_VOXEL_SIZE - 1) * chunkOffset.y) * scale,
-                            (k + (VoxelEngineConstants.CHUNK_VOXEL_SIZE - 1) * chunkOffset.z) * scale);
-                        byte value = perlinValue >= 0.5 ? (byte)1 : (byte)0;
-                        // if (i == 0 || j==0 || k == 0)
+                            (x - 1 + (VoxelEngineConstants.CHUNK_VOXEL_SIZE - 2) * chunkOffset.x) * scale,
+                            (y - 1 + (VoxelEngineConstants.CHUNK_VOXEL_SIZE - 2) * chunkOffset.y) * scale,
+                            (z - 1 + (VoxelEngineConstants.CHUNK_VOXEL_SIZE - 2) * chunkOffset.z) * scale);
+                        byte value = perlinValue >= 0.5 ? (byte)176 : (byte)0;
+                        // value = 1;
+                        //
+                        // if (x == 0 || y==0 || z == 0)
                         // {
                         //     value = 0;
                         // }
-                        // if (i == VoxelEngineConstants.CHUNK_VOXEL_SIZE-1 || j==VoxelEngineConstants.CHUNK_VOXEL_SIZE-1 || k == VoxelEngineConstants.CHUNK_VOXEL_SIZE-1)
+                        // if (x == VoxelEngineConstants.CHUNK_VOXEL_SIZE-1 || y==VoxelEngineConstants.CHUNK_VOXEL_SIZE-1 || z == VoxelEngineConstants.CHUNK_VOXEL_SIZE-1)
                         // {
                         //     value = 0;
                         // }
-                        // if (value > 0)
+                        //
+                        // if (value > 0 && z == 1)
                         // {
-                        //     value = (byte)(j);
+                        //     value = (byte)(15);
                         // }
 
                         voxels[
-                            i + (j * VoxelEngineConstants.CHUNK_VOXEL_SIZE) +
-                            (k * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED)] = value;
+                            x + (y * VoxelEngineConstants.CHUNK_VOXEL_SIZE) +
+                            (z * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED)] = value;
                     }
                 }
             }
+
             voxelGenerationMarker.End();
         }
 
@@ -67,23 +72,24 @@ namespace VoxelEngine.Example
             ProfilerMarker voxelBufferMarker)
         {
             voxelBufferMarker.Begin();
-            for (int x = 0; x < VoxelEngineConstants.CHUNK_VOXEL_SIZE; x++)
+            for (int x = 1; x < VoxelEngineConstants.CHUNK_VOXEL_SIZE - 1; x++)
             {
-                for (int y = 0; y < VoxelEngineConstants.CHUNK_VOXEL_SIZE; y++)
+                for (int y = 1; y < VoxelEngineConstants.CHUNK_VOXEL_SIZE - 1; y++)
                 {
-                    for (int z = 0; z < VoxelEngineConstants.CHUNK_VOXEL_SIZE; z++)
+                    for (int z = 1; z < VoxelEngineConstants.CHUNK_VOXEL_SIZE - 1; z++)
                     {
-                        int bufferIndex = x + y * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
-                                          (z / 4 * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED);
+                        int bufferIndex = (x - 1) + (y - 1) * (VoxelEngineConstants.CHUNK_VOXEL_SIZE - 2) +
+                                          (z - 1) / 4 * (VoxelEngineConstants.CHUNK_VOXEL_SIZE - 2) *
+                                          (VoxelEngineConstants.CHUNK_VOXEL_SIZE - 2);
                         uint voxel =
                             voxels[
                                 x + y * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
                                 (z * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED)];
-                        voxelBuffer[bufferIndex] |= voxel << z * (VoxelEngineConstants.CHUNK_VOXEL_SIZE / 4) %
-                            VoxelEngineConstants.CHUNK_VOXEL_SIZE;
+                        voxelBuffer[bufferIndex] |= voxel << (3 - ((z - 1) % 4)) * 8;
                     }
                 }
             }
+
             voxelBufferMarker.End();
         }
 
@@ -111,6 +117,7 @@ namespace VoxelEngine.Example
                     }
                 }
             }
+
             bitMatrixMarker.End();
         }
     }
@@ -128,7 +135,8 @@ namespace VoxelEngine.Example
                     VoxelEngineConstants.CHUNK_VOXEL_SIZE, Allocator.Persistent);
             chunkData.VoxelBuffer =
                 new NativeArray<uint>(
-                    VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED * (VoxelEngineConstants.CHUNK_VOXEL_SIZE / 4),
+                    (VoxelEngineConstants.CHUNK_VOXEL_SIZE - 2) * (VoxelEngineConstants.CHUNK_VOXEL_SIZE - 2) *
+                    (VoxelEngineConstants.CHUNK_VOXEL_SIZE / 4),
                     Allocator.TempJob);
             chunkData.BitMatrix =
                 new NativeArray<ulong>(VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED * 3, Allocator.TempJob);

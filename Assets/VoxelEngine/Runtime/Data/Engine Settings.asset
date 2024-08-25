@@ -17,7 +17,7 @@ MonoBehaviour:
   ZChunkSize: 0
   VoxelScale: 0
   MaxJobsPerFrame: 20
-  WorldRadius: 20
+  WorldRadius: 1
   XWorldSize: 0
   YWorldSize: 0
   ZWorldSize: 0

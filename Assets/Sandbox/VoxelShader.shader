@@ -40,6 +40,7 @@ Shader "Custom/DebugVoxelTextureAtlas"
                 float3 localPos : TEXCOORD2;
                 float3 worldNormal : TEXCOORD1;
                 float4 pos : SV_POSITION;
+                float sunLight : TEXCOORD3;
                 SHADOW_COORDS(3)
             };
 
@@ -52,14 +53,15 @@ Shader "Custom/DebugVoxelTextureAtlas"
             int _ChunkSize;
             int _ChunkSizeSquared;
             float _AmbientBoost;
-
+            
             // Function to decode packed data
-            void unpackVertexData(uint packedData, out float3 pos, out float faceIndex)
+            void unpackVertexData(uint packedData, out float3 pos, out float faceIndex, out float sunLight)
             {
                 pos.x = float((packedData & 0x3F)); // x
                 pos.y = float((packedData >> 6) & 0x3F); // y
                 pos.z = float((packedData >> 12) & 0x3F); // z
                 faceIndex = float((packedData >> 18) & 0x7); // faceIndex
+                sunLight = ((packedData >> 21) & 0xF);
             }
 
             float3 getNormal(float normalIndex)
@@ -94,9 +96,9 @@ Shader "Custom/DebugVoxelTextureAtlas"
                 {
                     voxelPos.z -= 1;
                 }
-
-                int voxel = voxelBuffer[voxelPos.x + voxelPos.y * _ChunkSize + (voxelPos.z / 4 * _ChunkSizeSquared)] >>
-                    (voxelPos.z * (_ChunkSize/4)) % _ChunkSize;
+                
+                int voxel = voxelBuffer[voxelPos.x + voxelPos.y * _ChunkSize + ((voxelPos.z / 4) * _ChunkSizeSquared)] >>
+                    (3 - (voxelPos.z % 4)) * 8;
                 voxel &= 255;
                 
                 return voxel;
@@ -106,7 +108,8 @@ Shader "Custom/DebugVoxelTextureAtlas"
             {
                 float3 pos;
                 float faceIndex;
-                unpackVertexData(v.encodedData, pos, faceIndex);
+                uint sunlight;
+                unpackVertexData(v.encodedData, pos, faceIndex, sunlight);
 
                 const float4 newPos = float4(pos, 1);
 
@@ -114,8 +117,8 @@ Shader "Custom/DebugVoxelTextureAtlas"
                 o.pos = UnityObjectToClipPos(newPos);
                 o.worldNormal = getNormal(faceIndex);
                 o.localPos = pos;
-
-                TRANSFER_SHADOW(o);
+                o.sunLight = sunlight;
+                
                 return o;
             }
 
@@ -124,7 +127,7 @@ Shader "Custom/DebugVoxelTextureAtlas"
                 float2 uv;
                 const float epsilon = 1 - 1e-6;
                 int voxelId = 0;
-                const int3 voxelPos = roundUp(i.localPos) + 1;
+                const int3 voxelPos = roundUp(i.localPos);
                 
                 if (abs(i.worldNormal.x) > epsilon)
                 {
@@ -149,14 +152,13 @@ Shader "Custom/DebugVoxelTextureAtlas"
                 //return fixed4(uv, 0, 1);
                 
                 // Apply lighting
-                fixed3 ambient = UNITY_LIGHTMODEL_AMBIENT.rgb * texColor.rgb;
                 fixed3 lightDir = normalize(_WorldSpaceLightPos0.xyz);
                 float diff = max(0, dot(i.worldNormal, lightDir));
-                fixed3 diffuse = diff * _LightColor0.rgb * texColor.rgb;
-
-                // Calculate shadow attenuation
-                float shadow = SHADOW_ATTENUATION(i);
-                fixed3 finalColor = (ambient + diffuse) * shadow + _AmbientBoost * texColor.rgb;
+                fixed3 diffuse = diff * texColor.rgb;
+                //diffuse *= (0.1f);
+                //Old value
+                //fixed3 finalColor = (ambient + diffuse) * shadow + _AmbientBoost * texColor.rgb;
+                fixed3 finalColor = diffuse + _AmbientBoost * texColor.rgb;
 
                 return fixed4(finalColor, texColor.a);
             }
