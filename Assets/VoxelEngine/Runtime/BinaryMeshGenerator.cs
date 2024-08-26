@@ -105,12 +105,12 @@ namespace VoxelEngine
                         currentMask = currentRow & (1UL << startIndex);
                         currentAmbientOcclusion = CalculateAO(i + faceNormal, j, bitIndex);
 
-                        cullingBitMatrixSlice[i + j * VoxelEngineConstants.CHUNK_VOXEL_SIZE] &= ~(1UL << startIndex);
+                        cullingBitMatrixSlice[i + j * VoxelEngineConstants.CHUNK_VOXEL_SIZE] &= ~(1UL << bitIndex);
 
                         for (; ; bitIndex++)
                         {
                             int4 tempAo = CalculateAO(i + faceNormal, j, bitIndex+1);
-                            if (bitIndex < VoxelEngineConstants.CHUNK_VOXEL_SIZE - 1 &&
+                            if (bitIndex < VoxelEngineConstants.CHUNK_VOXEL_SIZE - 2 &&
                                     ((currentRow >> (bitIndex+1)) & 1UL) == 1 &&
                                 tempAo.Equals(currentAmbientOcclusion))
                             {
