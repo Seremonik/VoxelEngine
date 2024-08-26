@@ -39,42 +39,40 @@ namespace VoxelEngine
         {
             vertexCount = 0;
 
-            GenerateSidesBitMatrix(BitMatrix, CullingBitMatrix, SideMatrixMarker);
-            TransposeCullingMatrices(CullingBitMatrix, TransposingMatrixMarker, TransposeMatrixLookupTable);
+            GenerateSidesBitMatrix();
+            TransposeCullingMatrices();
             GreedyMeshMarker.Begin();
             for (int i = 0; i < 6; i++)
             {
                 var sideSlice = new NativeSlice<ulong>(CullingBitMatrix,
                     i * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED,
                     VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED);
-                vertexCount = GreedyMesh(sideSlice, (SideOrientation)i, Triangles, Verts, vertexCount);
+                vertexCount = GreedyMesh(sideSlice, (SideOrientation)i);
             }
 
             GreedyMeshMarker.End();
         }
 
-        private static void GenerateSidesBitMatrix(NativeArray<ulong> bitMatrix, NativeArray<ulong> cullingBitMatrix,
-            ProfilerMarker SideMatrix)
+        private void GenerateSidesBitMatrix()
         {
-            SideMatrix.Begin();
+            SideMatrixMarker.Begin();
             int sizeSquare = VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED;
 
             for (int i = 0; i < sizeSquare; i++)
             {
                 for (int faces = 0; faces < 3; faces++)
                 {
-                    cullingBitMatrix[i + sizeSquare * faces * 2] = bitMatrix[i + sizeSquare * faces] &
-                                                                   ~(bitMatrix[i + sizeSquare * faces] >> 1);
-                    cullingBitMatrix[i + sizeSquare * (faces * 2 + 1)] = bitMatrix[i + sizeSquare * faces] &
-                                                                         ~(bitMatrix[i + sizeSquare * faces] << 1);
+                    CullingBitMatrix[i + sizeSquare * faces * 2] = BitMatrix[i + sizeSquare * faces] &
+                                                                  ~(BitMatrix[i + sizeSquare * faces] >> 1);
+                    CullingBitMatrix[i + sizeSquare * (faces * 2 + 1)] = BitMatrix[i + sizeSquare * faces] &
+                                                                         ~(BitMatrix[i + sizeSquare * faces] << 1);
                 }
             }
 
-            SideMatrix.End();
+            SideMatrixMarker.End();
         }
 
-        private static int GreedyMesh(NativeSlice<ulong> cullingBitMatrix, SideOrientation sideOrientation,
-            NativeList<int> Triangles, NativeList<uint> Verts, int vertexCount)
+        private int GreedyMesh(NativeSlice<ulong> cullingBitMatrixSlice, SideOrientation sideOrientation)
         {
             int width, height;
             int startIndex;
@@ -90,7 +88,7 @@ namespace VoxelEngine
             {
                 for (int j = 1; j < VoxelEngineConstants.CHUNK_VOXEL_SIZE - 1; j++)
                 {
-                    currentRow = cullingBitMatrix[i + j * VoxelEngineConstants.CHUNK_VOXEL_SIZE];
+                    currentRow = cullingBitMatrixSlice[i + j * VoxelEngineConstants.CHUNK_VOXEL_SIZE];
                     if (currentRow == 0) //if row is empty (no faces), then skip
                         continue;
 
@@ -105,40 +103,37 @@ namespace VoxelEngine
                         startIndex = bitIndex;
 
                         currentMask = currentRow & (1UL << startIndex);
-                        currentAmbientOcclusion = CalculateAO(i + faceNormal, j, bitIndex, cullingBitMatrix);
+                        currentAmbientOcclusion = CalculateAO(i + faceNormal, j, bitIndex);
 
-                        cullingBitMatrix[i + j * VoxelEngineConstants.CHUNK_VOXEL_SIZE] &= ~(1UL << startIndex);
+                        cullingBitMatrixSlice[i + j * VoxelEngineConstants.CHUNK_VOXEL_SIZE] &= ~(1UL << startIndex);
 
                         for (; ; bitIndex++)
                         {
-                            int4 tempAo = CalculateAO(i + faceNormal, j, bitIndex+1, cullingBitMatrix);
+                            int4 tempAo = CalculateAO(i + faceNormal, j, bitIndex+1);
                             if (bitIndex < VoxelEngineConstants.CHUNK_VOXEL_SIZE - 1 &&
                                     ((currentRow >> (bitIndex+1)) & 1UL) == 1 &&
                                 tempAo.Equals(currentAmbientOcclusion))
                             {
                                 width++;
                                 currentMask |= 1UL << (bitIndex+1);
-                                cullingBitMatrix[i + j * VoxelEngineConstants.CHUNK_VOXEL_SIZE] &= ~(1UL << bitIndex);
+                                cullingBitMatrixSlice[i + j * VoxelEngineConstants.CHUNK_VOXEL_SIZE] &= ~(1UL << bitIndex);
                             }
                             else
                             {
                                 for (int k = j + 1; ; k++)
                                 {
-                                    currentRow = cullingBitMatrix[i + k * VoxelEngineConstants.CHUNK_VOXEL_SIZE];
+                                    currentRow = cullingBitMatrixSlice[i + k * VoxelEngineConstants.CHUNK_VOXEL_SIZE];
                                     if (k < VoxelEngineConstants.CHUNK_VOXEL_SIZE - 1 &&
                                             (currentRow & currentMask) == currentMask &&
-                                        HasSameAo(width, currentAmbientOcclusion, i+ faceNormal, k, startIndex, cullingBitMatrix))
+                                        HasSameAo(width, currentAmbientOcclusion, i+ faceNormal, k, startIndex))
                                     {
                                         height++;
-                                        cullingBitMatrix[i + k * VoxelEngineConstants.CHUNK_VOXEL_SIZE] &= ~currentMask;
+                                        cullingBitMatrixSlice[i + k * VoxelEngineConstants.CHUNK_VOXEL_SIZE] &= ~currentMask;
                                     }
                                     else
                                     {
-                                        DrawFace(i-1, j-1, startIndex-1, width, height, sideOrientation, Verts,
-                                            Triangles,
-                                            1,
-                                            vertexCount);
-                                        vertexCount += 4;
+                                        DrawFace(i-1, j-1, startIndex-1, width, height, sideOrientation, 1
+                                            );
                                         break;
                                     }
                                 }
@@ -147,7 +142,7 @@ namespace VoxelEngine
                             }
                         }
 
-                        currentRow = cullingBitMatrix[i + j * VoxelEngineConstants.CHUNK_VOXEL_SIZE];
+                        currentRow = cullingBitMatrixSlice[i + j * VoxelEngineConstants.CHUNK_VOXEL_SIZE];
                         if (currentRow == 0)
                             break;
                     }
@@ -157,24 +152,23 @@ namespace VoxelEngine
             return vertexCount;
         }
 
-        private static bool HasSameAo(int width, int4 currentAo, int i, int j, int bitIndex,
-            NativeSlice<ulong> cullingBitMatrix)
+        private bool HasSameAo(int width, int4 currentAo, int i, int j, int bitIndex)
         {
             bool isTheSameAo = true;
             for (int rowIndex = 0; rowIndex < width && isTheSameAo; rowIndex++)
             {
-                isTheSameAo &= CalculateAO(i, j, bitIndex + rowIndex, cullingBitMatrix).Equals(currentAo);
+                isTheSameAo &= CalculateAO(i, j, bitIndex + rowIndex).Equals(currentAo);
             }
 
             return isTheSameAo;
         }
 
-        private static int4 CalculateAO(int i, int j, int bitIndex, NativeSlice<ulong> cullingBitMatrix)
+        private int4 CalculateAO(int i, int j, int bitIndex)
         {
             int4 result = new int4(0,0,0,0);
-            ulong topRow = cullingBitMatrix[i + (j + 1) * VoxelEngineConstants.CHUNK_VOXEL_SIZE];
-            ulong middleRow = cullingBitMatrix[i + j * VoxelEngineConstants.CHUNK_VOXEL_SIZE];
-            ulong bottomRow = cullingBitMatrix[i + (j - 1) * VoxelEngineConstants.CHUNK_VOXEL_SIZE];
+            ulong topRow = CullingBitMatrix[i + (j + 1) * VoxelEngineConstants.CHUNK_VOXEL_SIZE];
+            ulong middleRow = CullingBitMatrix[i + j * VoxelEngineConstants.CHUNK_VOXEL_SIZE];
+            ulong bottomRow = CullingBitMatrix[i + (j - 1) * VoxelEngineConstants.CHUNK_VOXEL_SIZE];
            
             result[0] = ((middleRow >> (bitIndex + 1)) & 1UL) == 0 ? 15 : 0;
             result[3] = result[0];
@@ -214,66 +208,66 @@ namespace VoxelEngine
             return result;
         }
 
-        private static void DrawFace(int x, int y, int z, int width, int height, SideOrientation sideOrientation,
-            NativeList<uint> verts,
-            NativeList<int> triangles,
-            int4 sunLight, int vertexCount)
+        private void DrawFace(int x, int y, int z, int width, int height, SideOrientation sideOrientation,
+            int4 sunLight)
         {
             switch (sideOrientation)
             {
                 case SideOrientation.Left: //Left
-                    EncodeValue(verts, sideOrientation, x, y, z, sunLight[0], 0);
-                    EncodeValue(verts, sideOrientation, x, y, z + width, sunLight[1], 0);
-                    EncodeValue(verts, sideOrientation, x, y + height, z + width, sunLight[2], 0);
-                    EncodeValue(verts, sideOrientation, x, y + height, z, sunLight[3], 0);
-                    FrontFace(triangles, vertexCount);
+                    EncodeValue( sideOrientation, x, y, z, sunLight[0], 0);
+                    EncodeValue( sideOrientation, x, y, z + width, sunLight[1], 0);
+                    EncodeValue( sideOrientation, x, y + height, z + width, sunLight[2], 0);
+                    EncodeValue( sideOrientation, x, y + height, z, sunLight[3], 0);
+                    FrontFace();
                     break;
 
                 case SideOrientation.Right: //Right
-                    EncodeValue(verts, sideOrientation, x + 1, y, z, sunLight[0], 0);
-                    EncodeValue(verts, sideOrientation, x + 1, y, z + width, sunLight[1], 0);
-                    EncodeValue(verts, sideOrientation, x + 1, y + height, z + width, sunLight[2], 0);
-                    EncodeValue(verts, sideOrientation, x + 1, y + height, z, sunLight[3], 0);
-                    BackFace(triangles, vertexCount);
+                    EncodeValue( sideOrientation, x + 1, y, z, sunLight[0], 0);
+                    EncodeValue( sideOrientation, x + 1, y, z + width, sunLight[1], 0);
+                    EncodeValue( sideOrientation, x + 1, y + height, z + width, sunLight[2], 0);
+                    EncodeValue( sideOrientation, x + 1, y + height, z, sunLight[3], 0);
+                    BackFace();
 
                     break;
                 case SideOrientation.Top: //Top
-                    EncodeValue(verts, sideOrientation, z, x + 1, y, sunLight[0], 0);
-                    EncodeValue(verts, sideOrientation, z, x + 1, y + height, sunLight[1], 0);
-                    EncodeValue(verts, sideOrientation, z + width, x + 1, y + height, sunLight[2], 0);
-                    EncodeValue(verts, sideOrientation, z + width, x + 1, y, sunLight[3], 0);
+                    EncodeValue( sideOrientation, z, x + 1, y, sunLight[0], 0);
+                    EncodeValue( sideOrientation, z, x + 1, y + height, sunLight[1], 0);
+                    EncodeValue( sideOrientation, z + width, x + 1, y + height, sunLight[2], 0);
+                    EncodeValue( sideOrientation, z + width, x + 1, y, sunLight[3], 0);
 
-                    FrontFace(triangles, vertexCount);
+                    FrontFace();
                     break;
                 case SideOrientation.Bottom: //Bottom
-                    EncodeValue(verts, sideOrientation, z, x, y, sunLight[0], 0);
-                    EncodeValue(verts, sideOrientation, z, x, y + height, sunLight[1], 0);
-                    EncodeValue(verts, sideOrientation, z + width, x, y + height, sunLight[2], 0);
-                    EncodeValue(verts, sideOrientation, z + width, x, y, sunLight[3], 0);
+                    EncodeValue( sideOrientation, z, x, y, sunLight[0], 0);
+                    EncodeValue( sideOrientation, z, x, y + height, sunLight[1], 0);
+                    EncodeValue( sideOrientation, z + width, x, y + height, sunLight[2], 0);
+                    EncodeValue( sideOrientation, z + width, x, y, sunLight[3], 0);
 
-                    BackFace(triangles, vertexCount);
+                    BackFace();
 
                     break;
                 case SideOrientation.Front: //Front
-                    EncodeValue(verts, sideOrientation, z, y, x, sunLight[0], 0);
-                    EncodeValue(verts, sideOrientation, z, y + height, x, sunLight[1], 0);
-                    EncodeValue(verts, sideOrientation, z + width, y + height, x, sunLight[2], 0);
-                    EncodeValue(verts, sideOrientation, z + width, y, x, sunLight[3], 0);
+                    EncodeValue( sideOrientation, z, y, x, sunLight[0], 0);
+                    EncodeValue( sideOrientation, z, y + height, x, sunLight[1], 0);
+                    EncodeValue( sideOrientation, z + width, y + height, x, sunLight[2], 0);
+                    EncodeValue( sideOrientation, z + width, y, x, sunLight[3], 0);
 
-                    FrontFace(triangles, vertexCount);
+                    FrontFace();
                     break;
                 case SideOrientation.Back: //Back
-                    EncodeValue(verts, sideOrientation, z, y, x + 1, sunLight[0], 0);
-                    EncodeValue(verts, sideOrientation, z, y + height, x + 1, sunLight[1], 0);
-                    EncodeValue(verts, sideOrientation, z + width, y + height, x + 1, sunLight[2], 0);
-                    EncodeValue(verts, sideOrientation, z + width, y, x + 1, sunLight[3], 0);
+                    EncodeValue( sideOrientation, z, y, x + 1, sunLight[0], 0);
+                    EncodeValue( sideOrientation, z, y + height, x + 1, sunLight[1], 0);
+                    EncodeValue( sideOrientation, z + width, y + height, x + 1, sunLight[2], 0);
+                    EncodeValue( sideOrientation, z + width, y, x + 1, sunLight[3], 0);
 
-                    BackFace(triangles, vertexCount);
+                    BackFace();
                     break;
             }
+
+            vertexCount += 4;
         }
 
-        private static void FrontFace(NativeList<int> Triangles, int vertexCount)
+        private void FrontFace()
         {
             Triangles.Add(vertexCount);
             Triangles.Add(vertexCount + 1);
@@ -283,7 +277,7 @@ namespace VoxelEngine
             Triangles.Add(vertexCount + 3);
         }
 
-        private static void BackFace(NativeList<int> Triangles, int vertexCount)
+        private void BackFace()
         {
             Triangles.Add(vertexCount);
             Triangles.Add(vertexCount + 2);
@@ -293,28 +287,27 @@ namespace VoxelEngine
             Triangles.Add(vertexCount + 2);
         }
 
-        private static void TransposeCullingMatrices(NativeArray<ulong> cullingBitMatrix, ProfilerMarker marker,
-            NativeArray<ulong> transponseMatrixLookupTable)
+        private void TransposeCullingMatrices()
         {
-            marker.Begin();
+            TransposingMatrixMarker.Begin();
             NativeSlice<ulong> tempSlice;
 
             for (int sides = 0; sides < 6; sides++)
             {
                 for (int i = 0; i < VoxelEngineConstants.CHUNK_VOXEL_SIZE; i++)
                 {
-                    tempSlice = new NativeSlice<ulong>(cullingBitMatrix,
+                    tempSlice = new NativeSlice<ulong>(CullingBitMatrix,
                         i * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
                         sides * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED,
                         VoxelEngineConstants.CHUNK_VOXEL_SIZE);
-                    Transpose64x64Matrix(tempSlice, transponseMatrixLookupTable);
+                    Transpose64x64Matrix(tempSlice, TransposeMatrixLookupTable);
                 }
             }
 
-            marker.End();
+            TransposingMatrixMarker.End();
         }
 
-        private static void Transpose64x64Matrix(NativeSlice<ulong> bitMatrix,
+        private void Transpose64x64Matrix(NativeSlice<ulong> bitMatrix,
             NativeArray<ulong> transposeMatrixLookupTable)
         {
             int i, p, s, idx0, idx1;
@@ -337,7 +330,7 @@ namespace VoxelEngine
             }
         }
 
-        private static void EncodeValue(NativeList<uint> verts, SideOrientation side, int x, int y, int z, int sunLight,
+        private void EncodeValue(SideOrientation side, int x, int y, int z, int sunLight,
             int lampsLight)
         {
             int faceId = (int)side;
@@ -351,7 +344,7 @@ namespace VoxelEngine
 
             uint packedData = (uint)(x) | ((uint)y << 6) | ((uint)z << 12) |
                               ((uint)faceId << 18 | ((uint)sunLight << 21));
-            verts.Add(packedData);
+            Verts.Add(packedData);
         }
     }
 
