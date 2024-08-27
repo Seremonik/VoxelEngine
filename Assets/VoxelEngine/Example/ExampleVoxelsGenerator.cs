@@ -111,9 +111,9 @@ namespace VoxelEngine.Example
                         if (!isSolid)
                             continue;
 
-                        bitMatrix[z + (y * VoxelEngineConstants.CHUNK_VOXEL_SIZE)] |= 1UL << x;
-                        bitMatrix[x + (z * VoxelEngineConstants.CHUNK_VOXEL_SIZE) + VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED] |= 1UL << y;
-                        bitMatrix[x + (y * VoxelEngineConstants.CHUNK_VOXEL_SIZE) + VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED * 2] |= 1UL << z;
+                        bitMatrix[z + (y * VoxelEngineConstants.CHUNK_VOXEL_SIZE)] |= 1UL << x; // Left-Right
+                        bitMatrix[x + (z * VoxelEngineConstants.CHUNK_VOXEL_SIZE) + VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED] |= 1UL << y; // Top-Bottom
+                        bitMatrix[x + (y * VoxelEngineConstants.CHUNK_VOXEL_SIZE) + VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED * 2] |= 1UL << z; // Front-Back
                     }
                 }
             }
