@@ -1,4 +1,3 @@
-using System;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
@@ -40,7 +39,7 @@ namespace VoxelEngine
         {
             vertexCount = 0;
 
-            GenerateSidesBitMatrix();
+            GenerateCulledBitMatrix();
             TransposeCullingMatrices();
             GreedyMeshMarker.Begin();
             for (int i = 0; i < 6; i++)
@@ -54,7 +53,7 @@ namespace VoxelEngine
             GreedyMeshMarker.End();
         }
 
-        private void GenerateSidesBitMatrix()
+        private void GenerateCulledBitMatrix()
         {
             SideMatrixMarker.Begin();
             int sizeSquare = VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED;
@@ -150,7 +149,7 @@ namespace VoxelEngine
 
         private bool HasSameAo(int width, int4 currentAo, int i, int j, int bitIndex, int axisIndex, int faceNormal)
         {
-            bool isTheSameAo = true;
+            var isTheSameAo = true;
             for (int rowIndex = 0; rowIndex < width && isTheSameAo; rowIndex++)
             {
                 isTheSameAo &= CalculateAO(i, j, bitIndex + rowIndex, axisIndex, faceNormal).Equals(currentAo);
@@ -164,86 +163,48 @@ namespace VoxelEngine
             i += faceNormal; //move to slice above (+1) or below (-1)
             var result = new int4(0, 0, 0, 0);
 
-            result[0] = ((BitMatrix[
-                bitIndex - 1 + j * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
-                VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED * axisIndex] >> i) & 1UL) == 0
-                ? 15
-                : 0;
+            result[0] = GetVoxelForAxis(bitIndex - 1, j, i, axisIndex);
             result[3] = result[0];
-            result[1] = ((BitMatrix[
-                bitIndex + 1 + j * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
-                VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED * axisIndex] >> i) & 1UL) == 0
-                ? 15
-                : 0;
+            result[1] = GetVoxelForAxis(bitIndex + 1, j, i, axisIndex);
             result[2] = result[1];
 
-            int currentValue =
-                ((BitMatrix[
-                    bitIndex + (j+1) * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
-                    VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED * axisIndex] >> i) & 1UL) == 0
-                    ? 15
-                    : 0;
+            int currentValue = GetVoxelForAxis(bitIndex, j + 1, i, axisIndex);
             result[3] += currentValue;
             result[2] += currentValue;
 
-            currentValue =
-                ((BitMatrix[
-                    bitIndex + (j-1) * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
-                    VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED * axisIndex] >> i) & 1UL) == 0
-                    ? 15
-                    : 0;
-
+            currentValue = GetVoxelForAxis(bitIndex, j - 1, i, axisIndex);
             result[0] += currentValue;
             result[1] += currentValue;
+            
+            if (result[0] != 0) //Check if corner voxel is actually visible
+                result[0] += GetVoxelForAxis(bitIndex - 1, j - 1, i, axisIndex);
 
 
-            if (result[0] != 0)
-            {
-                result[0] +=
-                    ((BitMatrix[
-                        bitIndex - 1 + (j-1) * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
-                        VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED * axisIndex] >> i) & 1UL) ==
-                    0
-                        ? 15
-                        : 0;
-            }
+            if (result[1] != 0) //Check if corner voxel is actually visible
+                result[1] += GetVoxelForAxis(bitIndex + 1, j - 1, i, axisIndex);
 
-            if (result[1] != 0)
-            {
-                result[1] +=
-                    ((BitMatrix[
-                        bitIndex + 1 + (j-1) * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
-                        VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED * axisIndex] >> i) & 1UL) ==
-                    0
-                        ? 15
-                        : 0;
-            }
 
-            if (result[2] != 0)
-            {
-                result[2] +=
-                    ((BitMatrix[
-                        bitIndex + 1 + (j+1) * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
-                        VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED * axisIndex] >> i) & 1UL) ==
-                    0
-                        ? 15
-                        : 0;
-            }
+            if (result[2] != 0) //Check if corner voxel is actually visible
+                result[2] += GetVoxelForAxis(bitIndex + 1, j + 1, i, axisIndex);
 
-            if (result[3] != 0)
-            {
-                result[3] +=
-                    ((BitMatrix[
-                        bitIndex - 1 + (j+1) * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
-                        VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED * axisIndex] >> i) & 1UL) ==
-                    0
-                        ? 15
-                        : 0;
-            }
+
+            if (result[3] != 0) //Check if corner voxel is actually visible
+                result[3] += GetVoxelForAxis(bitIndex - 1, j + 1, i, axisIndex);
+
 
             result += 15; //Add our voxel as being fully lit
             result /= 4; //Average each corner 
             return result;
+        }
+        
+        private int GetVoxelForAxis(int x, int y, int z, int axisIndex)
+        {
+            return ((BitMatrix[
+                x +
+                y * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
+                VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED * axisIndex] >> z) & 1UL) == 0
+                ? 15
+                : 0;
         }
 
         private void DrawFace(int x, int y, int z, int width, int height, SideOrientation sideOrientation,
@@ -325,16 +286,16 @@ namespace VoxelEngine
             Triangles.Add(vertexCount + 2);
         }
 
+        //We need to Transpose the Matrices to apply greedy meshing
         private void TransposeCullingMatrices()
         {
             TransposingMatrixMarker.Begin();
-            NativeSlice<ulong> tempSlice;
 
             for (int sides = 0; sides < 6; sides++)
             {
                 for (int i = 0; i < VoxelEngineConstants.CHUNK_VOXEL_SIZE; i++)
                 {
-                    tempSlice = new NativeSlice<ulong>(CullingBitMatrix,
+                    var tempSlice = new NativeSlice<ulong>(CullingBitMatrix,
                         i * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
                         sides * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED,
                         VoxelEngineConstants.CHUNK_VOXEL_SIZE);
@@ -345,25 +306,28 @@ namespace VoxelEngine
             TransposingMatrixMarker.End();
         }
 
+        //source: https://lukas-prokop.at/articles/2021-07-23-transpose
         private void Transpose64x64Matrix(NativeSlice<ulong> bitMatrix,
             NativeArray<ulong> transposeMatrixLookupTable)
         {
-            int i, p, s, idx0, idx1;
-            ulong x, y;
             for (int j = 5; j >= 0; j--)
             {
-                s = 1 << j;
+                var s = 1 << j;
+                int p;
                 for (p = 0; p < 32 / s; p++)
-                for (i = 0; i < s; i++)
                 {
-                    idx0 = (p * 2 * s + i);
-                    idx1 = (p * 2 * s + i + s);
-                    x = (bitMatrix[idx0] & transposeMatrixLookupTable[j]) |
-                        ((bitMatrix[idx1] & transposeMatrixLookupTable[j]) << s);
-                    y = ((bitMatrix[idx0] & transposeMatrixLookupTable[j + 6]) >> s) |
-                        (bitMatrix[idx1] & transposeMatrixLookupTable[j + 6]);
-                    bitMatrix[idx0] = x;
-                    bitMatrix[idx1] = y;
+                    int i;
+                    for (i = 0; i < s; i++)
+                    {
+                        var idx0 = (p * 2 * s + i);
+                        var idx1 = (p * 2 * s + i + s);
+                        var x = (bitMatrix[idx0] & transposeMatrixLookupTable[j]) |
+                                ((bitMatrix[idx1] & transposeMatrixLookupTable[j]) << s);
+                        var y = ((bitMatrix[idx0] & transposeMatrixLookupTable[j + 6]) >> s) |
+                                (bitMatrix[idx1] & transposeMatrixLookupTable[j + 6]);
+                        bitMatrix[idx0] = x;
+                        bitMatrix[idx1] = y;
+                    }
                 }
             }
         }
