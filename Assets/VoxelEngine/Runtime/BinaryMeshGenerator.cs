@@ -1,3 +1,4 @@
+using System;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
@@ -63,7 +64,7 @@ namespace VoxelEngine
                 for (int faces = 0; faces < 3; faces++)
                 {
                     CullingBitMatrix[i + sizeSquare * faces * 2] = BitMatrix[i + sizeSquare * faces] &
-                                                                  ~(BitMatrix[i + sizeSquare * faces] >> 1);
+                                                                   ~(BitMatrix[i + sizeSquare * faces] >> 1);
                     CullingBitMatrix[i + sizeSquare * (faces * 2 + 1)] = BitMatrix[i + sizeSquare * faces] &
                                                                          ~(BitMatrix[i + sizeSquare * faces] << 1);
                 }
@@ -103,37 +104,39 @@ namespace VoxelEngine
                         startIndex = bitIndex;
 
                         currentMask = currentRow & (1UL << startIndex);
-                        currentAmbientOcclusion = CalculateAO(i + faceNormal, j, bitIndex);
+                        currentAmbientOcclusion = CalculateAO(i, j, bitIndex, sideOrientation);
 
                         cullingBitMatrixSlice[i + j * VoxelEngineConstants.CHUNK_VOXEL_SIZE] &= ~(1UL << bitIndex);
 
-                        for (; ; bitIndex++)
+                        for (;; bitIndex++)
                         {
-                            int4 tempAo = CalculateAO(i + faceNormal, j, bitIndex+1);
                             if (bitIndex < VoxelEngineConstants.CHUNK_VOXEL_SIZE - 2 &&
-                                    ((currentRow >> (bitIndex+1)) & 1UL) == 1 &&
-                                tempAo.Equals(currentAmbientOcclusion))
+                                ((currentRow >> (bitIndex + 1)) & 1UL) == 1 &&
+                                CalculateAO(i, j, bitIndex + 1, sideOrientation).Equals(currentAmbientOcclusion))
                             {
                                 width++;
-                                currentMask |= 1UL << (bitIndex+1);
-                                cullingBitMatrixSlice[i + j * VoxelEngineConstants.CHUNK_VOXEL_SIZE] &= ~(1UL << bitIndex);
+                                currentMask |= 1UL << (bitIndex + 1);
+                                cullingBitMatrixSlice[i + j * VoxelEngineConstants.CHUNK_VOXEL_SIZE] &=
+                                    ~(1UL << bitIndex);
                             }
                             else
                             {
-                                for (int k = j + 1; ; k++)
+                                for (int k = j + 1;; k++)
                                 {
                                     currentRow = cullingBitMatrixSlice[i + k * VoxelEngineConstants.CHUNK_VOXEL_SIZE];
                                     if (k < VoxelEngineConstants.CHUNK_VOXEL_SIZE - 1 &&
-                                            (currentRow & currentMask) == currentMask &&
-                                        HasSameAo(width, currentAmbientOcclusion, i+ faceNormal, k, startIndex))
+                                        (currentRow & currentMask) == currentMask &&
+                                        HasSameAo(width, currentAmbientOcclusion, i, k, startIndex,
+                                            sideOrientation))
                                     {
                                         height++;
-                                        cullingBitMatrixSlice[i + k * VoxelEngineConstants.CHUNK_VOXEL_SIZE] &= ~currentMask;
+                                        cullingBitMatrixSlice[i + k * VoxelEngineConstants.CHUNK_VOXEL_SIZE] &=
+                                            ~currentMask;
                                     }
                                     else
                                     {
-                                        DrawFace(i-1, j-1, startIndex-1, width, height, sideOrientation, 1
-                                            );
+                                        DrawFace(i - 1, j - 1, startIndex - 1, width, height, sideOrientation, 1
+                                        );
                                         break;
                                     }
                                 }
@@ -152,57 +155,123 @@ namespace VoxelEngine
             return vertexCount;
         }
 
-        private bool HasSameAo(int width, int4 currentAo, int i, int j, int bitIndex)
+        private (int x, int y, int z) ConvertCullPositionToVoxelPosition(int i, int j, int bitIndex,
+            SideOrientation sideOrientation)
+        {
+            switch (sideOrientation)
+            {
+                case SideOrientation.Right:
+                    break;
+                case SideOrientation.Left:
+                    break;
+                case SideOrientation.Top:
+                    return new(bitIndex, i, j);
+                    break;
+                case SideOrientation.Bottom:
+                    break;
+                case SideOrientation.Back:
+                    return new(bitIndex, i, j);
+                    break;
+                case SideOrientation.Front:
+                    break;
+            }
+
+            return new(i, j, bitIndex);
+        }
+
+        private bool HasSameAo(int width, int4 currentAo, int i, int j, int bitIndex, SideOrientation sideOrientation)
         {
             bool isTheSameAo = true;
             for (int rowIndex = 0; rowIndex < width && isTheSameAo; rowIndex++)
             {
-                isTheSameAo &= CalculateAO(i, j, bitIndex + rowIndex).Equals(currentAo);
+                isTheSameAo &= CalculateAO(i, j, bitIndex + rowIndex, sideOrientation).Equals(currentAo);
             }
 
             return isTheSameAo;
         }
 
-        private int4 CalculateAO(int i, int j, int bitIndex)
+        private int4 CalculateAO(int i, int j, int bitIndex, SideOrientation sideOrientation)
         {
-            int4 result = new int4(0,0,0,0);
-            ulong topRow = CullingBitMatrix[i + (j + 1) * VoxelEngineConstants.CHUNK_VOXEL_SIZE];
-            ulong middleRow = CullingBitMatrix[i + j * VoxelEngineConstants.CHUNK_VOXEL_SIZE];
-            ulong bottomRow = CullingBitMatrix[i + (j - 1) * VoxelEngineConstants.CHUNK_VOXEL_SIZE];
-           
-            result[0] = ((middleRow >> (bitIndex + 1)) & 1UL) == 0 ? 15 : 0;
+            (int x, int y, int z) = ConvertCullPositionToVoxelPosition(i, j, bitIndex, sideOrientation);
+            int4 result = new int4(0, 0, 0, 0);
+
+            result[0] = ((BitMatrix[
+                x - 1 + (y + 1) * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
+                VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED * 2] >> z) & 1UL) == 0
+                ? 15
+                : 0;
             result[3] = result[0];
-            result[1] = ((middleRow >> (bitIndex - 1)) & 1UL) == 0 ? 15 : 0;
+            result[1] = ((BitMatrix[
+                x + 1 + (y + 1) * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
+                VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED * 2] >> z) & 1UL) == 0
+                ? 15
+                : 0;
             result[2] = result[1];
 
-            int currentValue = ((topRow >> bitIndex) & 1UL) == 0 ? 15 : 0;
+            int currentValue =
+                ((BitMatrix[
+                    x + (y + 1) * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
+                    VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED * 2] >> (z + 1)) & 1UL) == 0
+                    ? 15
+                    : 0;
             result[3] += currentValue;
             result[2] += currentValue;
 
-            currentValue = ((bottomRow >> bitIndex) & 1UL) == 0 ? 15 : 0;
+            currentValue =
+                ((BitMatrix[
+                    x + (y + 1) * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
+                    VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED * 2] >> (z - 1)) & 1UL) == 0
+                    ? 15
+                    : 0;
+
             result[0] += currentValue;
             result[1] += currentValue;
 
+
             if (result[0] != 0)
             {
-                result[0] += ((bottomRow >> (bitIndex + 1)) & 1UL) == 0 ? 15 : 0;
+                result[0] +=
+                    ((BitMatrix[
+                        x - 1 + (y + 1) * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
+                        VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED * 2] >> (z - 1)) & 1UL) ==
+                    0
+                        ? 15
+                        : 0;
             }
 
             if (result[1] != 0)
             {
-                result[1] += ((bottomRow >> (bitIndex - 1)) & 1UL) == 0 ? 15 : 0;
+                result[1] +=
+                    ((BitMatrix[
+                        x + 1 + (y + 1) * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
+                        VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED * 2] >> (z - 1)) & 1UL) ==
+                    0
+                        ? 15
+                        : 0;
             }
 
             if (result[2] != 0)
             {
-                result[2] += ((topRow >> (bitIndex - 1)) & 1UL) == 0 ? 15 : 0;
+                result[2] +=
+                    ((BitMatrix[
+                        x + 1 + (y + 1) * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
+                        VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED * 2] >> (z + 1)) & 1UL) ==
+                    0
+                        ? 15
+                        : 0;
             }
 
             if (result[3] != 0)
             {
-                result[3] += ((topRow >> (bitIndex + 1)) & 1UL) == 0 ? 15 : 0;
+                result[3] +=
+                    ((BitMatrix[
+                        x - 1 + (y + 1) * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
+                        VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED * 2] >> (z + 1)) & 1UL) ==
+                    0
+                        ? 15
+                        : 0;
             }
-            
+
             result += 15;
             result /= 4;
             return result;
@@ -214,51 +283,51 @@ namespace VoxelEngine
             switch (sideOrientation)
             {
                 case SideOrientation.Left: //Left
-                    EncodeValue( sideOrientation, x, y, z, sunLight[0], 0);
-                    EncodeValue( sideOrientation, x, y, z + width, sunLight[1], 0);
-                    EncodeValue( sideOrientation, x, y + height, z + width, sunLight[2], 0);
-                    EncodeValue( sideOrientation, x, y + height, z, sunLight[3], 0);
+                    EncodeValue(sideOrientation, x, y, z, sunLight[0], 0);
+                    EncodeValue(sideOrientation, x, y, z + width, sunLight[1], 0);
+                    EncodeValue(sideOrientation, x, y + height, z + width, sunLight[2], 0);
+                    EncodeValue(sideOrientation, x, y + height, z, sunLight[3], 0);
                     FrontFace();
                     break;
 
                 case SideOrientation.Right: //Right
-                    EncodeValue( sideOrientation, x + 1, y, z, sunLight[0], 0);
-                    EncodeValue( sideOrientation, x + 1, y, z + width, sunLight[1], 0);
-                    EncodeValue( sideOrientation, x + 1, y + height, z + width, sunLight[2], 0);
-                    EncodeValue( sideOrientation, x + 1, y + height, z, sunLight[3], 0);
+                    EncodeValue(sideOrientation, x + 1, y, z, sunLight[0], 0);
+                    EncodeValue(sideOrientation, x + 1, y, z + width, sunLight[1], 0);
+                    EncodeValue(sideOrientation, x + 1, y + height, z + width, sunLight[2], 0);
+                    EncodeValue(sideOrientation, x + 1, y + height, z, sunLight[3], 0);
                     BackFace();
 
                     break;
                 case SideOrientation.Top: //Top
-                    EncodeValue( sideOrientation, z, x + 1, y, sunLight[0], 0);
-                    EncodeValue( sideOrientation, z, x + 1, y + height, sunLight[1], 0);
-                    EncodeValue( sideOrientation, z + width, x + 1, y + height, sunLight[2], 0);
-                    EncodeValue( sideOrientation, z + width, x + 1, y, sunLight[3], 0);
+                    EncodeValue(sideOrientation, z, x + 1, y, sunLight[0], 0);
+                    EncodeValue(sideOrientation, z, x + 1, y + height, sunLight[1], 0);
+                    EncodeValue(sideOrientation, z + width, x + 1, y + height, sunLight[2], 0);
+                    EncodeValue(sideOrientation, z + width, x + 1, y, sunLight[3], 0);
 
                     FrontFace();
                     break;
                 case SideOrientation.Bottom: //Bottom
-                    EncodeValue( sideOrientation, z, x, y, sunLight[0], 0);
-                    EncodeValue( sideOrientation, z, x, y + height, sunLight[1], 0);
-                    EncodeValue( sideOrientation, z + width, x, y + height, sunLight[2], 0);
-                    EncodeValue( sideOrientation, z + width, x, y, sunLight[3], 0);
+                    EncodeValue(sideOrientation, z, x, y, sunLight[0], 0);
+                    EncodeValue(sideOrientation, z, x, y + height, sunLight[1], 0);
+                    EncodeValue(sideOrientation, z + width, x, y + height, sunLight[2], 0);
+                    EncodeValue(sideOrientation, z + width, x, y, sunLight[3], 0);
 
                     BackFace();
 
                     break;
                 case SideOrientation.Front: //Front
-                    EncodeValue( sideOrientation, z, y, x, sunLight[0], 0);
-                    EncodeValue( sideOrientation, z, y + height, x, sunLight[1], 0);
-                    EncodeValue( sideOrientation, z + width, y + height, x, sunLight[2], 0);
-                    EncodeValue( sideOrientation, z + width, y, x, sunLight[3], 0);
+                    EncodeValue(sideOrientation, z, y, x, sunLight[0], 0);
+                    EncodeValue(sideOrientation, z, y + height, x, sunLight[1], 0);
+                    EncodeValue(sideOrientation, z + width, y + height, x, sunLight[2], 0);
+                    EncodeValue(sideOrientation, z + width, y, x, sunLight[3], 0);
 
                     FrontFace();
                     break;
                 case SideOrientation.Back: //Back
-                    EncodeValue( sideOrientation, z, y, x + 1, sunLight[0], 0);
-                    EncodeValue( sideOrientation, z, y + height, x + 1, sunLight[1], 0);
-                    EncodeValue( sideOrientation, z + width, y + height, x + 1, sunLight[2], 0);
-                    EncodeValue( sideOrientation, z + width, y, x + 1, sunLight[3], 0);
+                    EncodeValue(sideOrientation, z, y, x + 1, sunLight[0], 0);
+                    EncodeValue(sideOrientation, z, y + height, x + 1, sunLight[1], 0);
+                    EncodeValue(sideOrientation, z + width, y + height, x + 1, sunLight[2], 0);
+                    EncodeValue(sideOrientation, z + width, y, x + 1, sunLight[3], 0);
 
                     BackFace();
                     break;

@@ -97,7 +97,7 @@ namespace VoxelEngine.Example
             ProfilerMarker bitMatrixMarker)
         {
             bitMatrixMarker.Begin();
-            int chunkSize = VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED;
+            
             for (int x = 0; x < VoxelEngineConstants.CHUNK_VOXEL_SIZE; x++)
             {
                 for (int y = 0; y < VoxelEngineConstants.CHUNK_VOXEL_SIZE; y++)
@@ -112,8 +112,8 @@ namespace VoxelEngine.Example
                             continue;
 
                         bitMatrix[z + (y * VoxelEngineConstants.CHUNK_VOXEL_SIZE)] |= 1UL << x;
-                        bitMatrix[x + (z * VoxelEngineConstants.CHUNK_VOXEL_SIZE) + chunkSize] |= 1UL << y;
-                        bitMatrix[x + (y * VoxelEngineConstants.CHUNK_VOXEL_SIZE) + chunkSize * 2] |= 1UL << z;
+                        bitMatrix[x + (z * VoxelEngineConstants.CHUNK_VOXEL_SIZE) + VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED] |= 1UL << y;
+                        bitMatrix[x + (y * VoxelEngineConstants.CHUNK_VOXEL_SIZE) + VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED * 2] |= 1UL << z;
                     }
                 }
             }

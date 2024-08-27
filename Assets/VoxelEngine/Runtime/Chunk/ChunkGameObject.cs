@@ -11,7 +11,9 @@ namespace VoxelEngine
         private MeshFilter meshFilter;
         [SerializeField]
         private MeshRenderer meshRenderer;
-
+        [SerializeField]
+        private MeshCollider meshCollider;
+        
         public JobHandle GenerationJobHandle;
         public ChunkData ChunkData { private set; get; }
         private Mesh mesh;
@@ -62,6 +64,7 @@ namespace VoxelEngine
             ChunkData.VoxelBuffer.Dispose();
             ChunkData.BitMatrix.Dispose();
             meshFilter.mesh = mesh;
+            //meshCollider.sharedMesh = mesh;
             //ChunkData.Vertices.Clear();
             //ChunkData.Triangles.Clear();
         }
