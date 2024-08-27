@@ -75,6 +75,11 @@ namespace VoxelEngine
 
         private int GreedyMesh(NativeSlice<ulong> cullingBitMatrixSlice, SideOrientation sideOrientation)
         {
+            int faceNormal = sideOrientation == SideOrientation.Top || sideOrientation == SideOrientation.Right ||
+                             sideOrientation == SideOrientation.Back
+                ? +1
+                : -1;
+            
             for (int i = 1; i < VoxelEngineConstants.CHUNK_VOXEL_SIZE - 1; i++)
             {
                 for (int j = 1; j < VoxelEngineConstants.CHUNK_VOXEL_SIZE - 1; j++)
@@ -94,7 +99,7 @@ namespace VoxelEngine
                         var startIndex = bitIndex;
 
                         var currentMask = currentRow & (1UL << startIndex);
-                        var currentAmbientOcclusion = CalculateAO(i, j, bitIndex, sideOrientation);
+                        var currentAmbientOcclusion = CalculateAO(i, j, bitIndex, sideOrientation, faceNormal);
 
                         cullingBitMatrixSlice[i + j * VoxelEngineConstants.CHUNK_VOXEL_SIZE] &= ~(1UL << bitIndex);
 
@@ -102,7 +107,7 @@ namespace VoxelEngine
                         {
                             if (bitIndex < VoxelEngineConstants.CHUNK_VOXEL_SIZE - 2 &&
                                 ((currentRow >> (bitIndex + 1)) & 1UL) == 1 &&
-                                CalculateAO(i, j, bitIndex + 1, sideOrientation).Equals(currentAmbientOcclusion))
+                                CalculateAO(i, j, bitIndex + 1, sideOrientation, faceNormal).Equals(currentAmbientOcclusion))
                             {
                                 width++;
                                 currentMask |= 1UL << (bitIndex + 1);
@@ -117,7 +122,7 @@ namespace VoxelEngine
                                     if (k < VoxelEngineConstants.CHUNK_VOXEL_SIZE - 1 &&
                                         (currentRow & currentMask) == currentMask &&
                                         HasSameAo(width, currentAmbientOcclusion, i, k, startIndex,
-                                            sideOrientation))
+                                            sideOrientation, faceNormal))
                                     {
                                         height++;
                                         cullingBitMatrixSlice[i + k * VoxelEngineConstants.CHUNK_VOXEL_SIZE] &=
@@ -169,30 +174,32 @@ namespace VoxelEngine
             return new(i, j, bitIndex);
         }
 
-        private bool HasSameAo(int width, int4 currentAo, int i, int j, int bitIndex, SideOrientation sideOrientation)
+        private bool HasSameAo(int width, int4 currentAo, int i, int j, int bitIndex, SideOrientation sideOrientation, int faceNormal)
         {
             bool isTheSameAo = true;
             for (int rowIndex = 0; rowIndex < width && isTheSameAo; rowIndex++)
             {
-                isTheSameAo &= CalculateAO(i, j, bitIndex + rowIndex, sideOrientation).Equals(currentAo);
+                isTheSameAo &= CalculateAO(i, j, bitIndex + rowIndex, sideOrientation, faceNormal).Equals(currentAo);
             }
 
             return isTheSameAo;
         }
 
-        private int4 CalculateAO(int i, int j, int bitIndex, SideOrientation sideOrientation)
+        private int4 CalculateAO(int i, int j, int bitIndex, SideOrientation sideOrientation, int faceNormal)
         {
             (int x, int y, int z) = ConvertCullPositionToVoxelPosition(i, j, bitIndex, sideOrientation);
+            y += faceNormal;
+            
             int4 result = new int4(0, 0, 0, 0);
 
             result[0] = ((BitMatrix[
-                x - 1 + (y + 1) * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
+                x - 1 + y * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
                 VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED * 2] >> z) & 1UL) == 0
                 ? 15
                 : 0;
             result[3] = result[0];
             result[1] = ((BitMatrix[
-                x + 1 + (y + 1) * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
+                x + 1 + y * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
                 VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED * 2] >> z) & 1UL) == 0
                 ? 15
                 : 0;
@@ -200,7 +207,7 @@ namespace VoxelEngine
 
             int currentValue =
                 ((BitMatrix[
-                    x + (y + 1) * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
+                    x + y * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
                     VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED * 2] >> (z + 1)) & 1UL) == 0
                     ? 15
                     : 0;
@@ -209,7 +216,7 @@ namespace VoxelEngine
 
             currentValue =
                 ((BitMatrix[
-                    x + (y + 1) * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
+                    x + y * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
                     VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED * 2] >> (z - 1)) & 1UL) == 0
                     ? 15
                     : 0;
@@ -222,7 +229,7 @@ namespace VoxelEngine
             {
                 result[0] +=
                     ((BitMatrix[
-                        x - 1 + (y + 1) * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
+                        x - 1 + y * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
                         VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED * 2] >> (z - 1)) & 1UL) ==
                     0
                         ? 15
@@ -233,7 +240,7 @@ namespace VoxelEngine
             {
                 result[1] +=
                     ((BitMatrix[
-                        x + 1 + (y + 1) * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
+                        x + 1 + y * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
                         VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED * 2] >> (z - 1)) & 1UL) ==
                     0
                         ? 15
@@ -244,7 +251,7 @@ namespace VoxelEngine
             {
                 result[2] +=
                     ((BitMatrix[
-                        x + 1 + (y + 1) * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
+                        x + 1 + y * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
                         VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED * 2] >> (z + 1)) & 1UL) ==
                     0
                         ? 15
@@ -255,7 +262,7 @@ namespace VoxelEngine
             {
                 result[3] +=
                     ((BitMatrix[
-                        x - 1 + (y + 1) * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
+                        x - 1 + y * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
                         VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED * 2] >> (z + 1)) & 1UL) ==
                     0
                         ? 15
