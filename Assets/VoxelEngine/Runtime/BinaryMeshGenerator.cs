@@ -75,21 +75,11 @@ namespace VoxelEngine
 
         private int GreedyMesh(NativeSlice<ulong> cullingBitMatrixSlice, SideOrientation sideOrientation)
         {
-            int width, height;
-            int startIndex;
-            int faceNormal = sideOrientation == SideOrientation.Top || sideOrientation == SideOrientation.Right ||
-                             sideOrientation == SideOrientation.Back
-                ? +1
-                : -1;
-            int4 currentAmbientOcclusion;
-            ulong currentRow;
-            ulong currentMask;
-
             for (int i = 1; i < VoxelEngineConstants.CHUNK_VOXEL_SIZE - 1; i++)
             {
                 for (int j = 1; j < VoxelEngineConstants.CHUNK_VOXEL_SIZE - 1; j++)
                 {
-                    currentRow = cullingBitMatrixSlice[i + j * VoxelEngineConstants.CHUNK_VOXEL_SIZE];
+                    var currentRow = cullingBitMatrixSlice[i + j * VoxelEngineConstants.CHUNK_VOXEL_SIZE];
                     if (currentRow == 0) //if row is empty (no faces), then skip
                         continue;
 
@@ -99,12 +89,12 @@ namespace VoxelEngine
                         if ((currentRow & (1UL << bitIndex)) == 0) //if its empty (no face) then skip
                             continue;
 
-                        width = 1;
-                        height = 1;
-                        startIndex = bitIndex;
+                        var width = 1;
+                        var height = 1;
+                        var startIndex = bitIndex;
 
-                        currentMask = currentRow & (1UL << startIndex);
-                        currentAmbientOcclusion = CalculateAO(i, j, bitIndex, sideOrientation);
+                        var currentMask = currentRow & (1UL << startIndex);
+                        var currentAmbientOcclusion = CalculateAO(i, j, bitIndex, sideOrientation);
 
                         cullingBitMatrixSlice[i + j * VoxelEngineConstants.CHUNK_VOXEL_SIZE] &= ~(1UL << bitIndex);
 
