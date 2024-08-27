@@ -148,13 +148,16 @@ Shader "Custom/DebugVoxelTextureAtlas"
                 const float2 spriteOffset = float2((voxelId % _AtlasSize) * _SpriteSize, (voxelId / _AtlasSize) * _SpriteSize);
                 uv = spriteOffset + frac(uv) / _AtlasSize;
 
-                fixed4 texColor = tex2D(_MainTex, uv) * _Color;
+                //fixed4 texColor = tex2D(_MainTex, uv) * _Color;
+                fixed4 texColor = 1;
                 //return fixed4(uv, 0, 1);
                 
                 // Apply lighting
                 fixed3 lightDir = normalize(_WorldSpaceLightPos0.xyz);
                 float diff = max(0, dot(i.worldNormal, lightDir));
-                fixed3 diffuse = diff * texColor.rgb;
+                //fixed3 diffuse = diff * texColor.rgb * (i.sunLight/15.0);
+                fixed3 diffuse = diff * texColor.rgb * pow(0.4,(15 - i.sunLight));
+
                 //diffuse *= (0.1f);
                 //Old value
                 //fixed3 finalColor = (ambient + diffuse) * shadow + _AmbientBoost * texColor.rgb;

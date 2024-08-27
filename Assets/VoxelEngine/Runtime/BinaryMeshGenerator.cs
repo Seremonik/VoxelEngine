@@ -127,7 +127,7 @@ namespace VoxelEngine
                                     }
                                     else
                                     {
-                                        DrawFace(i - 1, j - 1, startIndex - 1, width, height, sideOrientation, 1
+                                        DrawFace(i - 1, j - 1, startIndex - 1, width, height, sideOrientation, currentAmbientOcclusion
                                         );
                                         break;
                                     }
@@ -230,34 +230,34 @@ namespace VoxelEngine
                     break;
                 case SideOrientation.Top: //Top
                     EncodeValue(sideOrientation, z, x + 1, y, sunLight[0], 0);
-                    EncodeValue(sideOrientation, z, x + 1, y + height, sunLight[1], 0);
+                    EncodeValue(sideOrientation, z, x + 1, y + height, sunLight[3], 0);
                     EncodeValue(sideOrientation, z + width, x + 1, y + height, sunLight[2], 0);
-                    EncodeValue(sideOrientation, z + width, x + 1, y, sunLight[3], 0);
+                    EncodeValue(sideOrientation, z + width, x + 1, y, sunLight[1], 0);
 
                     FrontFace();
                     break;
                 case SideOrientation.Bottom: //Bottom
                     EncodeValue(sideOrientation, z, x, y, sunLight[0], 0);
-                    EncodeValue(sideOrientation, z, x, y + height, sunLight[1], 0);
+                    EncodeValue(sideOrientation, z, x, y + height, sunLight[3], 0);
                     EncodeValue(sideOrientation, z + width, x, y + height, sunLight[2], 0);
-                    EncodeValue(sideOrientation, z + width, x, y, sunLight[3], 0);
+                    EncodeValue(sideOrientation, z + width, x, y, sunLight[1], 0);
 
                     BackFace();
 
                     break;
                 case SideOrientation.Front: //Front
                     EncodeValue(sideOrientation, z, y, x, sunLight[0], 0);
-                    EncodeValue(sideOrientation, z, y + height, x, sunLight[1], 0);
+                    EncodeValue(sideOrientation, z, y + height, x, sunLight[3], 0);
                     EncodeValue(sideOrientation, z + width, y + height, x, sunLight[2], 0);
-                    EncodeValue(sideOrientation, z + width, y, x, sunLight[3], 0);
+                    EncodeValue(sideOrientation, z + width, y, x, sunLight[1], 0);
 
                     FrontFace();
                     break;
                 case SideOrientation.Back: //Back
                     EncodeValue(sideOrientation, z, y, x + 1, sunLight[0], 0);
-                    EncodeValue(sideOrientation, z, y + height, x + 1, sunLight[1], 0);
+                    EncodeValue(sideOrientation, z, y + height, x + 1, sunLight[3], 0);
                     EncodeValue(sideOrientation, z + width, y + height, x + 1, sunLight[2], 0);
-                    EncodeValue(sideOrientation, z + width, y, x + 1, sunLight[3], 0);
+                    EncodeValue(sideOrientation, z + width, y, x + 1, sunLight[1], 0);
 
                     BackFace();
                     break;
