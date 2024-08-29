@@ -38,8 +38,8 @@ Shader "Custom/DebugVoxelTextureAtlas"
             struct v2f
             {
                 float3 localPos : TEXCOORD2;
-                float3 worldNormal : TEXCOORD1;
                 float4 pos : SV_POSITION;
+                int faceIndex : TEXCOORD1;
                 float sunLight : TEXCOORD3;
                 SHADOW_COORDS(3)
             };
@@ -53,7 +53,7 @@ Shader "Custom/DebugVoxelTextureAtlas"
             int _ChunkSize;
             int _ChunkSizeSquared;
             float _AmbientBoost;
-            
+
             // Function to decode packed data
             void unpackVertexData(uint packedData, out float3 pos, out float faceIndex, out float sunLight)
             {
@@ -96,11 +96,12 @@ Shader "Custom/DebugVoxelTextureAtlas"
                 {
                     voxelPos.z -= 1;
                 }
-                
-                int voxel = voxelBuffer[voxelPos.x + voxelPos.y * _ChunkSize + ((voxelPos.z / 4) * _ChunkSizeSquared)] >>
+
+                int voxel = voxelBuffer[voxelPos.x + voxelPos.y * _ChunkSize + ((voxelPos.z / 4) * _ChunkSizeSquared)]
+                    >>
                     (3 - (voxelPos.z % 4)) * 8;
                 voxel &= 255;
-                
+
                 return voxel;
             }
 
@@ -115,55 +116,62 @@ Shader "Custom/DebugVoxelTextureAtlas"
 
                 v2f o;
                 o.pos = UnityObjectToClipPos(newPos);
-                o.worldNormal = getNormal(faceIndex);
                 o.localPos = pos;
                 o.sunLight = sunlight;
-                
+                o.faceIndex = faceIndex;
+
                 return o;
+            }
+
+            float lightValue(float normal)
+            {
+                switch (normal)
+                {
+                case 0: //right
+                    return 0.8;
+                case 1: //left
+                    return 0.6;
+                case 2: //top
+                    return 1;
+                case 3: // bottom
+                    return 0.3;
+                case 4: // back
+                    return 0.4;
+                }
+                return 0.9; //front
             }
 
             fixed4 frag(v2f i) : SV_Target
             {
                 float2 uv;
-                const float epsilon = 1 - 1e-6;
-                int voxelId = 0;
-                const int3 voxelPos = roundUp(i.localPos);
-                
-                if (abs(i.worldNormal.x) > epsilon)
+
+                const int3 voxel_pos = roundUp(i.localPos);
+
+                if (i.faceIndex == 0 || i.faceIndex == 1)
                 {
                     uv = i.localPos.zy;
-                    voxelId = getVoxelId(voxelPos, i.worldNormal.x > 0 ? 0 : 1);
                 }
-                else if (abs(i.worldNormal.y) > epsilon)
+                else if (i.faceIndex == 2 || i.faceIndex == 3)
                 {
                     uv = i.localPos.xz;
-                    voxelId = getVoxelId(voxelPos, i.worldNormal.y > 0 ? 2 : 3);
                 }
-                else if (abs(i.worldNormal.z) > epsilon)
+                else if (i.faceIndex == 3 || i.faceIndex == 4)
                 {
                     uv = i.localPos.xy;
-                    voxelId = getVoxelId(voxelPos, i.worldNormal.z > 0 ? 4 : 5);
                 }
+                const int voxelId = getVoxelId(voxel_pos, i.faceIndex);
 
-                const float2 spriteOffset = float2((voxelId % _AtlasSize) * _SpriteSize, (voxelId / _AtlasSize) * _SpriteSize);
+                const float2 spriteOffset = float2((voxelId % _AtlasSize) * _SpriteSize,
+                                                   (voxelId / _AtlasSize) * _SpriteSize);
                 uv = spriteOffset + frac(uv) / _AtlasSize;
 
-                //fixed4 texColor = tex2D(_MainTex, uv) * _Color;
-                fixed4 texColor = 1;
-                //return fixed4(uv, 0, 1);
-                
-                // Apply lighting
-                fixed3 lightDir = normalize(_WorldSpaceLightPos0.xyz);
-                float diff = max(0, dot(i.worldNormal, lightDir));
-                //fixed3 diffuse = diff * texColor.rgb * (i.sunLight/15.0);
-                fixed3 diffuse = diff * texColor.rgb * pow(0.4,(15 - i.sunLight));
+                fixed4 tex_color = tex2D(_MainTex, uv) * _Color;
 
-                //diffuse *= (0.1f);
-                //Old value
-                //fixed3 finalColor = (ambient + diffuse) * shadow + _AmbientBoost * texColor.rgb;
-                fixed3 finalColor = diffuse + _AmbientBoost * texColor.rgb;
+                float artificialLight = (1,1,1,1);
+                float sunLight = pow(0.9, (15 - i.sunLight)) * 1;
+                const fixed3 diffuse = lightValue(i.faceIndex) * tex_color.rgb * sunLight;
 
-                return fixed4(finalColor, texColor.a);
+                return fixed4(diffuse, tex_color.a);
             }
             ENDCG
         }

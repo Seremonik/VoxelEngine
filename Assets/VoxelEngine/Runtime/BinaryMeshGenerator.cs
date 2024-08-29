@@ -127,7 +127,8 @@ namespace VoxelEngine
                                     }
                                     else
                                     {
-                                        DrawFace(i - 1, j - 1, startIndex - 1, width, height, sideOrientation, currentAmbientOcclusion
+                                        DrawFace(i - 1, j - 1, startIndex - 1, width, height, sideOrientation,
+                                            currentAmbientOcclusion
                                         );
                                         break;
                                     }
@@ -175,28 +176,44 @@ namespace VoxelEngine
             currentValue = GetVoxelForAxis(bitIndex, j - 1, i, axisIndex);
             result[0] += currentValue;
             result[1] += currentValue;
-            
+
             if (result[0] != 0) //Check if corner voxel is actually visible
-                result[0] += GetVoxelForAxis(bitIndex - 1, j - 1, i, axisIndex);
+            {
+                int x = GetVoxelForAxis(bitIndex - 1, j - 1, i, axisIndex);
+                result[0] += x;
+                //result[1] =  result[0];
+            }
 
 
             if (result[1] != 0) //Check if corner voxel is actually visible
-                result[1] += GetVoxelForAxis(bitIndex + 1, j - 1, i, axisIndex);
+            {
+                int x = GetVoxelForAxis(bitIndex + 1, j - 1, i, axisIndex);
+                result[1] += x;
+                //result[2] = result[1] ;
+            }
 
 
             if (result[2] != 0) //Check if corner voxel is actually visible
-                result[2] += GetVoxelForAxis(bitIndex + 1, j + 1, i, axisIndex);
+            {
+                int x = GetVoxelForAxis(bitIndex + 1, j + 1, i, axisIndex);
+                result[2] += x;
+                //result[3] = result[2];
+            }
 
 
             if (result[3] != 0) //Check if corner voxel is actually visible
-                result[3] += GetVoxelForAxis(bitIndex - 1, j + 1, i, axisIndex);
+            {
+                int x = GetVoxelForAxis(bitIndex - 1, j + 1, i, axisIndex);
+                result[3] += x;
+                // result[0] = result[3];
+            }
 
 
             result += 15; //Add our voxel as being fully lit
             result /= 4; //Average each corner 
             return result;
         }
-        
+
         private int GetVoxelForAxis(int x, int y, int z, int axisIndex)
         {
             return ((BitMatrix[
@@ -217,7 +234,7 @@ namespace VoxelEngine
                     EncodeValue(sideOrientation, x, y, z + width, sunLight[1], 0);
                     EncodeValue(sideOrientation, x, y + height, z + width, sunLight[2], 0);
                     EncodeValue(sideOrientation, x, y + height, z, sunLight[3], 0);
-                    FrontFace();
+                    FrontFace(sunLight[0] + sunLight[2] < sunLight[1] + sunLight[3]);
                     break;
 
                 case SideOrientation.Right: //Right
@@ -225,7 +242,7 @@ namespace VoxelEngine
                     EncodeValue(sideOrientation, x + 1, y, z + width, sunLight[1], 0);
                     EncodeValue(sideOrientation, x + 1, y + height, z + width, sunLight[2], 0);
                     EncodeValue(sideOrientation, x + 1, y + height, z, sunLight[3], 0);
-                    BackFace();
+                    BackFace(sunLight[0] + sunLight[2] < sunLight[1] + sunLight[3]);
 
                     break;
                 case SideOrientation.Top: //Top
@@ -234,7 +251,7 @@ namespace VoxelEngine
                     EncodeValue(sideOrientation, z + width, x + 1, y + height, sunLight[2], 0);
                     EncodeValue(sideOrientation, z + width, x + 1, y, sunLight[1], 0);
 
-                    FrontFace();
+                    FrontFace(sunLight[0] + sunLight[2] < sunLight[1] + sunLight[3]);
                     break;
                 case SideOrientation.Bottom: //Bottom
                     EncodeValue(sideOrientation, z, x, y, sunLight[0], 0);
@@ -242,7 +259,7 @@ namespace VoxelEngine
                     EncodeValue(sideOrientation, z + width, x, y + height, sunLight[2], 0);
                     EncodeValue(sideOrientation, z + width, x, y, sunLight[1], 0);
 
-                    BackFace();
+                    BackFace(sunLight[0] + sunLight[2] < sunLight[1] + sunLight[3]);
 
                     break;
                 case SideOrientation.Front: //Front
@@ -251,7 +268,7 @@ namespace VoxelEngine
                     EncodeValue(sideOrientation, z + width, y + height, x, sunLight[2], 0);
                     EncodeValue(sideOrientation, z + width, y, x, sunLight[1], 0);
 
-                    FrontFace();
+                    FrontFace(sunLight[0] + sunLight[2] < sunLight[1] + sunLight[3]);
                     break;
                 case SideOrientation.Back: //Back
                     EncodeValue(sideOrientation, z, y, x + 1, sunLight[0], 0);
@@ -259,31 +276,55 @@ namespace VoxelEngine
                     EncodeValue(sideOrientation, z + width, y + height, x + 1, sunLight[2], 0);
                     EncodeValue(sideOrientation, z + width, y, x + 1, sunLight[1], 0);
 
-                    BackFace();
+                    BackFace(sunLight[0] + sunLight[2] < sunLight[1] + sunLight[3]);
                     break;
             }
 
             vertexCount += 4;
         }
 
-        private void FrontFace()
+        private void FrontFace(bool flipped)
         {
-            Triangles.Add(vertexCount);
-            Triangles.Add(vertexCount + 1);
-            Triangles.Add(vertexCount + 2);
-            Triangles.Add(vertexCount);
-            Triangles.Add(vertexCount + 2);
-            Triangles.Add(vertexCount + 3);
+            if (flipped)
+            {
+                Triangles.Add(vertexCount);
+                Triangles.Add(vertexCount + 1);
+                Triangles.Add(vertexCount + 3);
+                Triangles.Add(vertexCount + 1);
+                Triangles.Add(vertexCount + 2);
+                Triangles.Add(vertexCount + 3);
+            }
+            else
+            {
+                Triangles.Add(vertexCount);
+                Triangles.Add(vertexCount + 1);
+                Triangles.Add(vertexCount + 2);
+                Triangles.Add(vertexCount);
+                Triangles.Add(vertexCount + 2);
+                Triangles.Add(vertexCount + 3);
+            }
         }
 
-        private void BackFace()
+        private void BackFace(bool flipped)
         {
-            Triangles.Add(vertexCount);
-            Triangles.Add(vertexCount + 2);
-            Triangles.Add(vertexCount + 1);
-            Triangles.Add(vertexCount);
-            Triangles.Add(vertexCount + 3);
-            Triangles.Add(vertexCount + 2);
+            if (flipped)
+            {
+                Triangles.Add(vertexCount + 1);
+                Triangles.Add(vertexCount + 3);
+                Triangles.Add(vertexCount + 2);
+                Triangles.Add(vertexCount + 1);
+                Triangles.Add(vertexCount + 0);
+                Triangles.Add(vertexCount + 3);
+            }
+            else
+            {
+                Triangles.Add(vertexCount);
+                Triangles.Add(vertexCount + 2);
+                Triangles.Add(vertexCount + 1);
+                Triangles.Add(vertexCount);
+                Triangles.Add(vertexCount + 3);
+                Triangles.Add(vertexCount + 2);
+            }
         }
 
         //We need to Transpose the Matrices to apply greedy meshing
