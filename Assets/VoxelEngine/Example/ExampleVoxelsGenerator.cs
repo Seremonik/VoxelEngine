@@ -8,6 +8,42 @@ using UnityEngine;
 namespace VoxelEngine.Example
 {
     [BurstCompile]
+    public struct BitMatrixGenerationJob : IJob
+    {
+        [ReadOnly]
+        public NativeArray<byte> Voxels;
+        public NativeArray<ulong> BitMatrix;
+        
+        public void Execute()
+        {
+            CalculateBitMatrix(BitMatrix, Voxels);
+        }
+        
+        private static void CalculateBitMatrix(NativeArray<ulong> bitMatrix, NativeArray<byte> voxels)
+        {
+            for (int x = 0; x < VoxelEngineConstants.CHUNK_VOXEL_SIZE; x++)
+            {
+                for (int y = 0; y < VoxelEngineConstants.CHUNK_VOXEL_SIZE; y++)
+                {
+                    for (int z = 0; z < VoxelEngineConstants.CHUNK_VOXEL_SIZE; z++)
+                    {
+                        bool isSolid =
+                            voxels[
+                                x + (y * VoxelEngineConstants.CHUNK_VOXEL_SIZE) +
+                                (z * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED)] != 0;
+                        if (!isSolid)
+                            continue;
+
+                        bitMatrix[z + (y * VoxelEngineConstants.CHUNK_VOXEL_SIZE)] |= 1UL << x; // Left-Right
+                        bitMatrix[x + (z * VoxelEngineConstants.CHUNK_VOXEL_SIZE) + VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED] |= 1UL << y; // Top-Bottom
+                        bitMatrix[x + (y * VoxelEngineConstants.CHUNK_VOXEL_SIZE) + VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED * 2] |= 1UL << z; // Front-Back
+                    }
+                }
+            }
+        }
+    }
+
+    [BurstCompile]
     public struct VoxelGenerationJob : IJob
     {
         public int3 ChunkOffset;
@@ -23,7 +59,7 @@ namespace VoxelEngine.Example
         {
             GenerateVoxels(Voxels, ChunkOffset, 0.06f, VoxelGenerationMarker);
             GetVoxelBuffer(VoxelBuffer, Voxels, VoxelBufferMarker);
-            CalculateBitMatrix(BitMatrix, Voxels, BitMatrixMarker);
+            //CalculateBitMatrix(BitMatrix, Voxels, BitMatrixMarker);
         }
 
         public static void GenerateVoxels(NativeArray<byte> voxels, int3 chunkOffset, float scale,
@@ -93,33 +129,33 @@ namespace VoxelEngine.Example
             voxelBufferMarker.End();
         }
 
-        private static void CalculateBitMatrix(NativeArray<ulong> bitMatrix, NativeArray<byte> voxels,
-            ProfilerMarker bitMatrixMarker)
-        {
-            bitMatrixMarker.Begin();
-            
-            for (int x = 0; x < VoxelEngineConstants.CHUNK_VOXEL_SIZE; x++)
-            {
-                for (int y = 0; y < VoxelEngineConstants.CHUNK_VOXEL_SIZE; y++)
-                {
-                    for (int z = 0; z < VoxelEngineConstants.CHUNK_VOXEL_SIZE; z++)
-                    {
-                        bool isSolid =
-                            voxels[
-                                x + (y * VoxelEngineConstants.CHUNK_VOXEL_SIZE) +
-                                (z * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED)] != 0;
-                        if (!isSolid)
-                            continue;
-
-                        bitMatrix[z + (y * VoxelEngineConstants.CHUNK_VOXEL_SIZE)] |= 1UL << x; // Left-Right
-                        bitMatrix[x + (z * VoxelEngineConstants.CHUNK_VOXEL_SIZE) + VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED] |= 1UL << y; // Top-Bottom
-                        bitMatrix[x + (y * VoxelEngineConstants.CHUNK_VOXEL_SIZE) + VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED * 2] |= 1UL << z; // Front-Back
-                    }
-                }
-            }
-
-            bitMatrixMarker.End();
-        }
+        // private static void CalculateBitMatrix(NativeArray<ulong> bitMatrix, NativeArray<byte> voxels,
+        //     ProfilerMarker bitMatrixMarker)
+        // {
+        //     bitMatrixMarker.Begin();
+        //     
+        //     for (int x = 0; x < VoxelEngineConstants.CHUNK_VOXEL_SIZE; x++)
+        //     {
+        //         for (int y = 0; y < VoxelEngineConstants.CHUNK_VOXEL_SIZE; y++)
+        //         {
+        //             for (int z = 0; z < VoxelEngineConstants.CHUNK_VOXEL_SIZE; z++)
+        //             {
+        //                 bool isSolid =
+        //                     voxels[
+        //                         x + (y * VoxelEngineConstants.CHUNK_VOXEL_SIZE) +
+        //                         (z * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED)] != 0;
+        //                 if (!isSolid)
+        //                     continue;
+        //
+        //                 bitMatrix[z + (y * VoxelEngineConstants.CHUNK_VOXEL_SIZE)] |= 1UL << x; // Left-Right
+        //                 bitMatrix[x + (z * VoxelEngineConstants.CHUNK_VOXEL_SIZE) + VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED] |= 1UL << y; // Top-Bottom
+        //                 bitMatrix[x + (y * VoxelEngineConstants.CHUNK_VOXEL_SIZE) + VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED * 2] |= 1UL << z; // Front-Back
+        //             }
+        //         }
+        //     }
+        //
+        //     bitMatrixMarker.End();
+        // }
     }
 
     [CreateAssetMenu(fileName = "Voxel Generator", menuName = "ScriptableObjects/VoxelGenerator", order = 1)]
@@ -127,6 +163,21 @@ namespace VoxelEngine.Example
     {
         //private float scale = 0.06f;
 
+        public JobHandle ScheduleBitMatrixRecalculation(ChunkData chunkData)
+        {
+            chunkData.BitMatrix =
+                new NativeArray<ulong>(VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED * 3, Allocator.TempJob);
+            
+            var bitMatrixGenerationJob = new BitMatrixGenerationJob()
+            {
+                BitMatrix = chunkData.BitMatrix,
+                Voxels = chunkData.Voxels
+            };
+            var handle = bitMatrixGenerationJob.Schedule();
+
+            return handle;
+        }
+        
         public JobHandle ScheduleChunkGeneration(ChunkData chunkData)
         {
             chunkData.Voxels =
@@ -143,7 +194,7 @@ namespace VoxelEngine.Example
             chunkData.Vertices = new NativeList<uint>(Allocator.Persistent);
             chunkData.Triangles = new NativeList<int>(Allocator.Persistent);
 
-            var job = new VoxelGenerationJob()
+            var voxelGenerationJob = new VoxelGenerationJob()
             {
                 BitMatrixMarker = new ProfilerMarker("Bit Matrix creation"),
                 VoxelBufferMarker = new ProfilerMarker("Voxel Buffer creation"),
@@ -153,9 +204,16 @@ namespace VoxelEngine.Example
                 BitMatrix = chunkData.BitMatrix,
                 ChunkOffset = chunkData.ChunkPosition,
             };
-            var handle = job.Schedule();
-
-            return handle;
+            var bitMatrixGenerationJob = new BitMatrixGenerationJob()
+            {
+                BitMatrix = chunkData.BitMatrix,
+                Voxels = chunkData.Voxels
+            };
+            
+            var handle = voxelGenerationJob.Schedule();
+            var handle2 = bitMatrixGenerationJob.Schedule(handle);
+            
+            return handle2;
         }
     }
 }

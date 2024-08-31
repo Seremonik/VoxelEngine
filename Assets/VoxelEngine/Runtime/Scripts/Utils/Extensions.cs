@@ -1,3 +1,6 @@
+using Unity.Mathematics;
+using UnityEngine;
+
 namespace VoxelEngine
 {
     public static class Extensions

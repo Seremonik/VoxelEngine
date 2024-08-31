@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
 
@@ -34,6 +35,9 @@ namespace VoxelEngine
             {
                 Initialize();
             }
+
+            scheduledChunksCreation.Enqueue(new int3(0, 0, 0));
+            //GenerateWorld();
         }
 
         private void Update()
@@ -55,15 +59,60 @@ namespace VoxelEngine
                 chunk.GenerationJobHandle.Complete();
                 chunk.UpdateMesh();
                 scheduledChunks.RemoveAt(i);
-                visibleChunks.Add(chunk.ChunkData.ChunkPosition, chunk);
+                visibleChunks.TryAdd(chunk.ChunkData.ChunkPosition, chunk);
             }
         }
 
         public void GenerateWorld()
         {
-            // scheduledChunksCreation.Enqueue(new int3(0, 0, 0));
-            SpiralOutward(engineSettings.WorldRadius, 0, 0,
-                (x, z) => scheduledChunksCreation.Enqueue(new int3(x, 0, z)));
+            RefreshChunk(new int3(0, 0, 0));
+             //scheduledChunksCreation.Enqueue(new int3(0, 0, 0));
+            // SpiralOutward(engineSettings.WorldRadius, 0, 0,
+            //     (x, z) => scheduledChunksCreation.Enqueue(new int3(x, 0, z)));
+        }
+
+        public void RemoveVoxel(RaycastHit raycastHit)
+        {
+            if (raycastHit.normal.x > 0 || raycastHit.normal.y > 0 || raycastHit.normal.z > 0)
+            {
+                raycastHit.point -= raycastHit.normal;
+            }
+            int3 voxelToRemove =new int3((int)math.floor(raycastHit.point.x), (int)math.floor(raycastHit.point.y),(int)math.floor(raycastHit.point.z));
+            ChangeVoxel(voxelToRemove, 0);
+        }
+
+        public void AddVoxel(RaycastHit raycastHit, byte voxelId)
+        {
+            if (raycastHit.normal.x < 0 || raycastHit.normal.y < 0 || raycastHit.normal.z < 0)
+            {
+                raycastHit.point += raycastHit.normal;
+            }
+            
+            int3 voxelToAdd = new int3((int)math.floor(raycastHit.point.x), (int)math.floor(raycastHit.point.y),(int)math.floor(raycastHit.point.z));
+            ChangeVoxel(voxelToAdd, 15);
+        }
+
+        private void ChangeVoxel(int3 position, byte newValue)
+        {
+            position += 1; //Offset by one as we have padding of 1. Instead of 64 we render 62
+            int3 chunkPosition = position / 62;
+            position %= 62;
+            Debug.Log(position);
+            visibleChunks.TryGetValue(chunkPosition, out var chunk);
+            chunk.ChunkData.Voxels[
+                position.x + position.y * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
+                position.z * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED] = newValue;
+            RefreshChunk(chunkPosition);
+        }
+
+        private void RefreshChunk(int3 chunkPosition)
+        {
+            visibleChunks.TryGetValue(chunkPosition, out var chunk);
+            var bitMatrixRecalculationHandle = voxelsGenerator.Value.ScheduleBitMatrixRecalculation(chunk.ChunkData);
+            var meshGenerationHandle =
+                meshGenerator.Value.ScheduleMeshGeneration(chunk.ChunkData, bitMatrixRecalculationHandle);
+            chunk.GenerationJobHandle = meshGenerationHandle;
+            scheduledChunks.Add(chunk);
         }
 
         private void GenerateChunk(int x, int z)

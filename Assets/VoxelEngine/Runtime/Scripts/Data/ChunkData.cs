@@ -7,14 +7,14 @@ namespace VoxelEngine
 {
     public class ChunkData : IDisposable
     {
+        //Buffers
         public NativeArray<byte> Voxels;
         public NativeArray<ulong> BitMatrix;
         public NativeArray<uint> VoxelBuffer;
-        public int3 ChunkPosition;
-        public Vector3 PivotPosition;
-        public Mesh Mesh;
         public NativeList<int> Triangles;
         public NativeList<uint> Vertices;
+        
+        public int3 ChunkPosition;
 
         public bool IsDirty;
         public bool RequiresSaving;
@@ -29,7 +29,7 @@ namespace VoxelEngine
         {
             ChunkPosition = new int3(x, y, z);
         }
-        
+
         public void Dispose()
         {
             Voxels.Dispose();
