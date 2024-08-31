@@ -11,10 +11,12 @@ namespace VoxelEngine
     public struct Vertex
     {
         public float3 pos;
+        public float3 normal;
 
-        public Vertex(int x, int y, int z)
+        public Vertex(int x, int y, int z, short normalX, short normalY, short normalZ)
         {
             pos = new float3(x, y, z);
+            normal = new float3(normalX, normalY, normalZ);
         }
     }
 
@@ -150,51 +152,51 @@ namespace VoxelEngine
             switch (sideOrientation)
             {
                 case SideOrientation.Left: //Left
-                    Verts.Add(new Vertex(x, y, z));
-                    Verts.Add(new Vertex(x, y, z + width));
-                    Verts.Add(new Vertex(x, y + height, z + width));
-                    Verts.Add(new Vertex(x, y + height, z));
+                    Verts.Add(new Vertex(x, y, z,-1,0,0));
+                    Verts.Add(new Vertex(x, y, z + width,-1,0,0));
+                    Verts.Add(new Vertex(x, y + height, z + width,-1,0,0));
+                    Verts.Add(new Vertex(x, y + height, z,-1,0,0));
                     FrontFace();
                     break;
 
                 case SideOrientation.Right: //Right
-                    Verts.Add(new Vertex(x + 1, y, z));
-                    Verts.Add(new Vertex(x + 1, y, z + width));
-                    Verts.Add(new Vertex(x + 1, y + height, z + width));
-                    Verts.Add(new Vertex(x + 1, y + height, z));
+                    Verts.Add(new Vertex(x + 1, y, z,1,0,0));
+                    Verts.Add(new Vertex(x + 1, y, z + width,1,0,0));
+                    Verts.Add(new Vertex(x + 1, y + height, z + width,1,0,0));
+                    Verts.Add(new Vertex(x + 1, y + height, z,1,0,0));
                     BackFace();
 
                     break;
                 case SideOrientation.Top: //Top
-                    Verts.Add(new Vertex(z, x + 1, y));
-                    Verts.Add(new Vertex(z, x + 1, y + height));
-                    Verts.Add(new Vertex(z + width, x + 1, y + height));
-                    Verts.Add(new Vertex(z + width, x + 1, y));
+                    Verts.Add(new Vertex(z, x + 1, y,0,1,0));
+                    Verts.Add(new Vertex(z, x + 1, y + height,0,1,0));
+                    Verts.Add(new Vertex(z + width, x + 1, y + height,0,1,0));
+                    Verts.Add(new Vertex(z + width, x + 1, y,0,1,0));
 
                     FrontFace();
                     break;
                 case SideOrientation.Bottom: //Bottom
-                    Verts.Add(new Vertex(z, x, y));
-                    Verts.Add(new Vertex(z, x, y + height));
-                    Verts.Add(new Vertex(z + width, x, y + height));
-                    Verts.Add(new Vertex(z + width, x, y));
+                    Verts.Add(new Vertex(z, x, y,0,-1,0));
+                    Verts.Add(new Vertex(z, x, y + height,0,-1,0));
+                    Verts.Add(new Vertex(z + width, x, y + height,0,-1,0));
+                    Verts.Add(new Vertex(z + width, x, y,0,-1,0));
 
                     BackFace();
 
                     break;
                 case SideOrientation.Front: //Front
-                    Verts.Add(new Vertex(z, y, x));
-                    Verts.Add(new Vertex(z, y + height, x));
-                    Verts.Add(new Vertex(z + width, y + height, x));
-                    Verts.Add(new Vertex(z + width, y, x));
+                    Verts.Add(new Vertex(z, y, x,0,0,-1));
+                    Verts.Add(new Vertex(z, y + height, x,0,0,-1));
+                    Verts.Add(new Vertex(z + width, y + height, x,0,0,-1));
+                    Verts.Add(new Vertex(z + width, y, x,0,0,-1));
 
                     FrontFace();
                     break;
                 case SideOrientation.Back: //Back
-                    Verts.Add(new Vertex(z, y, x + 1));
-                    Verts.Add(new Vertex(z, y + height, x + 1));
-                    Verts.Add(new Vertex(z + width, y + height, x + 1));
-                    Verts.Add(new Vertex(z + width, y, x + 1));
+                    Verts.Add(new Vertex(z, y, x + 1,0,0,1));
+                    Verts.Add(new Vertex(z, y + height, x + 1,0,0,1));
+                    Verts.Add(new Vertex(z + width, y + height, x + 1,0,0,1));
+                    Verts.Add(new Vertex(z + width, y, x + 1,0,0,1));
 
                     BackFace();
                     break;
@@ -295,9 +297,9 @@ namespace VoxelEngine
             var job = new CollisionMeshingJob()
             {
                 TransposeMatrixLookupTable = transposeMatrixLookupTable,
-                GreedyMeshMarker = new ProfilerMarker("Greedy meshing"),
-                SideMatrixMarker = new ProfilerMarker("SideMatrix"),
-                TransposingMatrixMarker = new ProfilerMarker("Transposing"),
+                GreedyMeshMarker = new ProfilerMarker("Collision Greedy meshing"),
+                SideMatrixMarker = new ProfilerMarker("Collision SideMatrix"),
+                TransposingMatrixMarker = new ProfilerMarker("Collision Transposing"),
                 Triangles = triangles,
                 Verts = vertices,
                 BitMatrix = bitMatrix,

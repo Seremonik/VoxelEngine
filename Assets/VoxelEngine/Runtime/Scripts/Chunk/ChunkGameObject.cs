@@ -14,7 +14,7 @@ namespace VoxelEngine
         private MeshRenderer meshRenderer;
         [SerializeField]
         private MeshCollider meshCollider;
-        
+
         public JobHandle GenerationJobHandle;
         public ChunkData ChunkData { private set; get; }
         private Mesh mesh;
@@ -26,9 +26,12 @@ namespace VoxelEngine
         {
             mesh = new Mesh();
             meshFilter.mesh = mesh;
-            
-            voxelBuffer = new ComputeBuffer((VoxelEngineConstants.CHUNK_VOXEL_SIZE-2)* (VoxelEngineConstants.CHUNK_VOXEL_SIZE-2) * (VoxelEngineConstants.CHUNK_VOXEL_SIZE/4), System.Runtime.InteropServices.Marshal.SizeOf(typeof(int)), ComputeBufferType.Default);
-            
+
+            voxelBuffer = new ComputeBuffer(
+                (VoxelEngineConstants.CHUNK_VOXEL_SIZE - 2) * (VoxelEngineConstants.CHUNK_VOXEL_SIZE - 2) *
+                (VoxelEngineConstants.CHUNK_VOXEL_SIZE / 4), System.Runtime.InteropServices.Marshal.SizeOf(typeof(int)),
+                ComputeBufferType.Default);
+
             voxelMaterial = Instantiate(meshRenderer.sharedMaterial);
             meshRenderer.material = voxelMaterial;
         }
@@ -41,7 +44,7 @@ namespace VoxelEngine
         public void UpdateMesh()
         {
             mesh.Clear();
-            
+
             var vertexCount = ChunkData.Vertices.Length;
             var trisCount = ChunkData.Triangles.Length;
             var layout = new[]
@@ -50,20 +53,26 @@ namespace VoxelEngine
             };
             mesh.SetVertexBufferParams(vertexCount, layout);
             mesh.SetVertexBufferData(ChunkData.Vertices.AsArray(), 0, 0, vertexCount);
-            
+
             // Tris
             mesh.SetIndexBufferParams(trisCount, IndexFormat.UInt32);
             mesh.SetIndexBufferData(ChunkData.Triangles.AsArray(), 0, 0, trisCount);
-            
-            mesh.SetSubMesh(0, new SubMeshDescriptor(0, trisCount), MeshUpdateFlags.DontRecalculateBounds | MeshUpdateFlags.DontValidateIndices);
+
+            mesh.SetSubMesh(0, new SubMeshDescriptor(0, trisCount),
+                MeshUpdateFlags.DontRecalculateBounds | MeshUpdateFlags.DontValidateIndices);
             mesh.bounds = new Bounds(
                 new Vector3(VoxelEngineConstants.CHUNK_VOXEL_SIZE / 2f, VoxelEngineConstants.CHUNK_VOXEL_SIZE / 2f,
                     VoxelEngineConstants.CHUNK_VOXEL_SIZE / 2f),
                 new Vector3(VoxelEngineConstants.CHUNK_VOXEL_SIZE, VoxelEngineConstants.CHUNK_VOXEL_SIZE,
                     VoxelEngineConstants.CHUNK_VOXEL_SIZE));
-            
-            voxelBuffer.SetData(ChunkData.VoxelBuffer);
-            voxelMaterial.SetBuffer("voxelBuffer", voxelBuffer);
+
+            if (ChunkData.VoxelBuffer.IsCreated)
+            {
+                voxelBuffer.SetData(ChunkData.VoxelBuffer);
+                voxelMaterial.SetBuffer("voxelBuffer", voxelBuffer);
+                ChunkData.VoxelBuffer.Dispose();
+            }
+
             ChunkData.Triangles.Clear();
             ChunkData.Vertices.Clear();
             GeneratePhysicMesh();
@@ -75,6 +84,7 @@ namespace VoxelEngine
             {
                 collisionMesh = new Mesh();
             }
+
             collisionMesh.Clear();
 
             NativeList<Vertex> vertices = new NativeList<Vertex>(Allocator.Persistent);
@@ -83,32 +93,34 @@ namespace VoxelEngine
             CollisionMeshGenerator meshGenerator = new CollisionMeshGenerator();
             var jobHandle = meshGenerator.ScheduleMeshGeneration(ChunkData.BitMatrix, triangles, vertices);
             jobHandle.Complete();
-            
+
             var vertexCount = vertices.Length;
             var trisCount = triangles.Length;
             var layout = new[]
             {
                 new VertexAttributeDescriptor(VertexAttribute.Position, VertexAttributeFormat.Float32, 3),
+                new VertexAttributeDescriptor(VertexAttribute.Normal, VertexAttributeFormat.Float32, 3),
             };
             collisionMesh.SetVertexBufferParams(vertexCount, layout);
             collisionMesh.SetVertexBufferData(vertices.AsArray(), 0, 0, vertexCount);
-            
+
             // Tris
             collisionMesh.SetIndexBufferParams(trisCount, IndexFormat.UInt32);
             collisionMesh.SetIndexBufferData(triangles.AsArray(), 0, 0, trisCount);
-            
-            collisionMesh.SetSubMesh(0, new SubMeshDescriptor(0, trisCount), MeshUpdateFlags.DontRecalculateBounds | MeshUpdateFlags.DontValidateIndices);
+
+            collisionMesh.SetSubMesh(0, new SubMeshDescriptor(0, trisCount),
+                MeshUpdateFlags.DontRecalculateBounds | MeshUpdateFlags.DontValidateIndices);
             collisionMesh.bounds = new Bounds(
                 new Vector3(VoxelEngineConstants.CHUNK_VOXEL_SIZE / 2f, VoxelEngineConstants.CHUNK_VOXEL_SIZE / 2f,
                     VoxelEngineConstants.CHUNK_VOXEL_SIZE / 2f),
                 new Vector3(VoxelEngineConstants.CHUNK_VOXEL_SIZE, VoxelEngineConstants.CHUNK_VOXEL_SIZE,
                     VoxelEngineConstants.CHUNK_VOXEL_SIZE));
-            collisionMesh.RecalculateNormals();
+            //collisionMesh.RecalculateNormals();
             meshCollider.sharedMesh = collisionMesh;
-            
+
             ChunkData.BitMatrix.Dispose();
         }
-        
+
         private void OnDestroy()
         {
             voxelBuffer.Dispose();

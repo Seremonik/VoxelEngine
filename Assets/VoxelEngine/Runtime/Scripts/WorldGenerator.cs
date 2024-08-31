@@ -65,8 +65,7 @@ namespace VoxelEngine
 
         public void GenerateWorld()
         {
-            RefreshChunk(new int3(0, 0, 0));
-             //scheduledChunksCreation.Enqueue(new int3(0, 0, 0));
+            scheduledChunksCreation.Enqueue(new int3(0, 0, 0));
             // SpiralOutward(engineSettings.WorldRadius, 0, 0,
             //     (x, z) => scheduledChunksCreation.Enqueue(new int3(x, 0, z)));
         }
@@ -78,7 +77,8 @@ namespace VoxelEngine
                 raycastHit.point -= raycastHit.normal;
             }
             int3 voxelToRemove =new int3((int)math.floor(raycastHit.point.x), (int)math.floor(raycastHit.point.y),(int)math.floor(raycastHit.point.z));
-            ChangeVoxel(voxelToRemove, 0);
+            int3 chunk =ChangeVoxel(voxelToRemove, 0);
+            RefreshChunk(chunk, false);
         }
 
         public void AddVoxel(RaycastHit raycastHit, byte voxelId)
@@ -89,28 +89,34 @@ namespace VoxelEngine
             }
             
             int3 voxelToAdd = new int3((int)math.floor(raycastHit.point.x), (int)math.floor(raycastHit.point.y),(int)math.floor(raycastHit.point.z));
-            ChangeVoxel(voxelToAdd, 15);
+            int3 chunk = ChangeVoxel(voxelToAdd, 15);
+            RefreshChunk(chunk, true);
         }
 
-        private void ChangeVoxel(int3 position, byte newValue)
+        private int3 ChangeVoxel(int3 position, byte newValue)
         {
             position += 1; //Offset by one as we have padding of 1. Instead of 64 we render 62
             int3 chunkPosition = position / 62;
             position %= 62;
-            Debug.Log(position);
+
             visibleChunks.TryGetValue(chunkPosition, out var chunk);
             chunk.ChunkData.Voxels[
                 position.x + position.y * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
                 position.z * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED] = newValue;
-            RefreshChunk(chunkPosition);
+            return chunkPosition;
         }
 
-        private void RefreshChunk(int3 chunkPosition)
+        private void RefreshChunk(int3 chunkPosition, bool isAddition)
         {
             visibleChunks.TryGetValue(chunkPosition, out var chunk);
-            var bitMatrixRecalculationHandle = voxelsGenerator.Value.ScheduleBitMatrixRecalculation(chunk.ChunkData);
+            JobHandle voxelBufferRecalculationHandle = new JobHandle();
+            if (isAddition)
+            {
+                voxelBufferRecalculationHandle = voxelsGenerator.Value.ScheduleVoxelBufferRecalculation(chunk.ChunkData, new JobHandle());
+            }
+            var bitMatrixRecalculationHandle = voxelsGenerator.Value.ScheduleBitMatrixRecalculation(chunk.ChunkData, new JobHandle());
             var meshGenerationHandle =
-                meshGenerator.Value.ScheduleMeshGeneration(chunk.ChunkData, bitMatrixRecalculationHandle);
+                meshGenerator.Value.ScheduleMeshGeneration(chunk.ChunkData, JobHandle.CombineDependencies(voxelBufferRecalculationHandle, bitMatrixRecalculationHandle));
             chunk.GenerationJobHandle = meshGenerationHandle;
             scheduledChunks.Add(chunk);
         }
