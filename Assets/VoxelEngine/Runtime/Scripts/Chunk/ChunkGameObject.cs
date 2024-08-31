@@ -116,7 +116,7 @@ namespace VoxelEngine
                 new Vector3(VoxelEngineConstants.CHUNK_VOXEL_SIZE, VoxelEngineConstants.CHUNK_VOXEL_SIZE,
                     VoxelEngineConstants.CHUNK_VOXEL_SIZE));
             //collisionMesh.RecalculateNormals();
-            meshCollider.sharedMesh = collisionMesh;
+            //meshCollider.sharedMesh = collisionMesh;
 
             ChunkData.BitMatrix.Dispose();
         }

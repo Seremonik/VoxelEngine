@@ -137,6 +137,7 @@ GameObject:
   - component: {fileID: 178682871}
   - component: {fileID: 178682870}
   - component: {fileID: 178682872}
+  - component: {fileID: 178682873}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -263,6 +264,19 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 86baa262a7c843b596233f32fb79f4c2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  worldGenerator: {fileID: 6525561966114098334}
+--- !u!114 &178682873
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 178682861}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 243c9be4466449599ce2c5c24ad22827, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   worldGenerator: {fileID: 6525561966114098334}
@@ -1803,7 +1817,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 69cc4117dab94e50b9c042cd8c05feda, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  playerPosition: {fileID: 178682867}
+  playerPosition: {fileID: 1195454615}
   debugConsoleContainer: {fileID: 1851306012}
   chunkBorder: {fileID: 1328400171}
   chunkRaycaster: {fileID: 178682872}

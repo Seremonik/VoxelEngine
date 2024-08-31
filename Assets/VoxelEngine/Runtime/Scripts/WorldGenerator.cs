@@ -70,14 +70,34 @@ namespace VoxelEngine
             //     (x, z) => scheduledChunksCreation.Enqueue(new int3(x, 0, z)));
         }
 
+        public bool IsVoxelSolid(int3 voxelPosition)
+        {
+            int3 chunkPosition = new int3(
+                (int)Mathf.Floor(voxelPosition.x / 62f) * 62,
+                (int)Mathf.Floor(voxelPosition.y / 62f) * 62,
+                (int)Mathf.Floor(voxelPosition.z / 62f) * 62);
+            chunkPosition *= 62;
+            if(visibleChunks.TryGetValue(chunkPosition, out var chunk))
+            {
+                voxelPosition += 1;
+                return chunk.ChunkData.Voxels[
+                    (voxelPosition.x % 62) + (voxelPosition.y % 62) * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
+                    (voxelPosition.z % 62) * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED] != 0;
+            }
+
+            return false;
+        }
+
         public void RemoveVoxel(RaycastHit raycastHit)
         {
             if (raycastHit.normal.x > 0 || raycastHit.normal.y > 0 || raycastHit.normal.z > 0)
             {
                 raycastHit.point -= raycastHit.normal;
             }
-            int3 voxelToRemove =new int3((int)math.floor(raycastHit.point.x), (int)math.floor(raycastHit.point.y),(int)math.floor(raycastHit.point.z));
-            int3 chunk =ChangeVoxel(voxelToRemove, 0);
+
+            int3 voxelToRemove = new int3((int)math.floor(raycastHit.point.x), (int)math.floor(raycastHit.point.y),
+                (int)math.floor(raycastHit.point.z));
+            int3 chunk = ChangeVoxel(voxelToRemove, 0);
             RefreshChunk(chunk, false);
         }
 
@@ -87,8 +107,9 @@ namespace VoxelEngine
             {
                 raycastHit.point += raycastHit.normal;
             }
-            
-            int3 voxelToAdd = new int3((int)math.floor(raycastHit.point.x), (int)math.floor(raycastHit.point.y),(int)math.floor(raycastHit.point.z));
+
+            int3 voxelToAdd = new int3((int)math.floor(raycastHit.point.x), (int)math.floor(raycastHit.point.y),
+                (int)math.floor(raycastHit.point.z));
             int3 chunk = ChangeVoxel(voxelToAdd, 15);
             RefreshChunk(chunk, true);
         }
@@ -112,11 +133,15 @@ namespace VoxelEngine
             JobHandle voxelBufferRecalculationHandle = new JobHandle();
             if (isAddition)
             {
-                voxelBufferRecalculationHandle = voxelsGenerator.Value.ScheduleVoxelBufferRecalculation(chunk.ChunkData, new JobHandle());
+                voxelBufferRecalculationHandle =
+                    voxelsGenerator.Value.ScheduleVoxelBufferRecalculation(chunk.ChunkData, new JobHandle());
             }
-            var bitMatrixRecalculationHandle = voxelsGenerator.Value.ScheduleBitMatrixRecalculation(chunk.ChunkData, new JobHandle());
+
+            var bitMatrixRecalculationHandle =
+                voxelsGenerator.Value.ScheduleBitMatrixRecalculation(chunk.ChunkData, new JobHandle());
             var meshGenerationHandle =
-                meshGenerator.Value.ScheduleMeshGeneration(chunk.ChunkData, JobHandle.CombineDependencies(voxelBufferRecalculationHandle, bitMatrixRecalculationHandle));
+                meshGenerator.Value.ScheduleMeshGeneration(chunk.ChunkData,
+                    JobHandle.CombineDependencies(voxelBufferRecalculationHandle, bitMatrixRecalculationHandle));
             chunk.GenerationJobHandle = meshGenerationHandle;
             scheduledChunks.Add(chunk);
         }
@@ -129,8 +154,8 @@ namespace VoxelEngine
             }
 
             var freeChunk = pooledChunks.Dequeue();
-            freeChunk.transform.position = new Vector3(x * (VoxelEngineConstants.CHUNK_VOXEL_SIZE-2), 0,
-                z * (VoxelEngineConstants.CHUNK_VOXEL_SIZE-2));
+            freeChunk.transform.position = new Vector3(x * (VoxelEngineConstants.CHUNK_VOXEL_SIZE - 2), 0,
+                z * (VoxelEngineConstants.CHUNK_VOXEL_SIZE - 2));
             freeChunk.gameObject.name = $"Chunk({x}, {0},{z})";
             freeChunk.SetChunkData(new ChunkData(x, 0, z));
             var voxelGenerationHandle = voxelsGenerator.Value.ScheduleChunkGeneration(freeChunk.ChunkData);
