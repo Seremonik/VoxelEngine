@@ -19,6 +19,21 @@ namespace VoxelEngine
             ball.GetComponent<Collider>().enabled = false;
         }
 
+        public int3 GetVoxelPosition()
+        {
+            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            if (Physics.Raycast(ray, out var hit, maxDistance:100, layerMask:layerMask))
+            {
+                if (hit.normal.x > 0 || hit.normal.y > 0 || hit.normal.z > 0)
+                {
+                    hit.point -= hit.normal;
+                }
+                return new int3((int)math.floor(hit.point.x), (int)math.floor(hit.point.y),(int)math.floor(hit.point.z));
+            }
+
+            return new int3(0, 0, 0);
+        }
+        
         private void Update()
         {
             if (Input.GetMouseButtonDown(0))
