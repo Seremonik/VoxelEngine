@@ -36,8 +36,8 @@ namespace VoxelEngine
                 Initialize();
             }
 
-            scheduledChunksCreation.Enqueue(new int3(0, 0, 0));
-            //GenerateWorld();
+            //scheduledChunksCreation.Enqueue(new int3(0, 0, 0));
+            GenerateWorld();
         }
 
         private void Update()
@@ -69,7 +69,7 @@ namespace VoxelEngine
             // SpiralOutward(engineSettings.WorldRadius, 0, 0,
             //     (x, z) => scheduledChunksCreation.Enqueue(new int3(x, 0, z)));
         }
-
+        
         public bool IsVoxelSolid(int3 voxelPosition)
         {
             int3 chunkPosition = new int3(
@@ -88,29 +88,15 @@ namespace VoxelEngine
             return false;
         }
 
-        public void RemoveVoxel(RaycastHit raycastHit)
+        public void RemoveVoxel(int3 voxelPosition)
         {
-            if (raycastHit.normal.x > 0 || raycastHit.normal.y > 0 || raycastHit.normal.z > 0)
-            {
-                raycastHit.point -= raycastHit.normal;
-            }
-
-            int3 voxelToRemove = new int3((int)math.floor(raycastHit.point.x), (int)math.floor(raycastHit.point.y),
-                (int)math.floor(raycastHit.point.z));
-            int3 chunk = ChangeVoxel(voxelToRemove, 0);
+            int3 chunk = ChangeVoxel(voxelPosition, 0);
             RefreshChunk(chunk, false);
         }
 
-        public void AddVoxel(RaycastHit raycastHit, byte voxelId)
+        public void AddVoxel(int3 voxelPosition, byte voxelId)
         {
-            if (raycastHit.normal.x < 0 || raycastHit.normal.y < 0 || raycastHit.normal.z < 0)
-            {
-                raycastHit.point += raycastHit.normal;
-            }
-
-            int3 voxelToAdd = new int3((int)math.floor(raycastHit.point.x), (int)math.floor(raycastHit.point.y),
-                (int)math.floor(raycastHit.point.z));
-            int3 chunk = ChangeVoxel(voxelToAdd, 15);
+            int3 chunk = ChangeVoxel(voxelPosition, 15);
             RefreshChunk(chunk, true);
         }
 

@@ -9,68 +9,112 @@ namespace VoxelEngine
         [SerializeField]
         private WorldGenerator worldGenerator;
 
-        private LayerMask layerMask;
-        private GameObject ball;
-        private void Start()
-        {
-            layerMask = 1 << LayerMask.NameToLayer("Chunk");
-            ball = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            ball.transform.localScale = new Vector3(0.1f, 0.1f, 0.1f);
-            ball.GetComponent<Collider>().enabled = false;
-        }
-
         public int3 GetVoxelPosition()
         {
             Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-            if (Physics.Raycast(ray, out var hit, maxDistance:100, layerMask:layerMask))
+            if (RayVoxel(ray, out int3 voxelPosition, out int3 _))
             {
-                if (hit.normal.x > 0 || hit.normal.y > 0 || hit.normal.z > 0)
-                {
-                    hit.point -= hit.normal;
-                }
-                return new int3((int)math.floor(hit.point.x), (int)math.floor(hit.point.y),(int)math.floor(hit.point.z));
+                return voxelPosition;
             }
 
             return new int3(0, 0, 0);
         }
-        
+
         private void Update()
         {
             if (Input.GetMouseButtonDown(0))
             {
                 Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-                if (Physics.Raycast(ray, out var hit, maxDistance:100, layerMask:layerMask))
+                if (RayVoxel(ray, out int3 voxelPosition, out int3 normal))
                 {
-                    ball.transform.position = hit.point;
-                    worldGenerator.AddVoxel(RoundUpRaycast(hit), 15);
+                    worldGenerator.AddVoxel(voxelPosition + normal, 15);
                 }
             }
             else if (Input.GetMouseButtonDown(1))
             {
                 Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-                if (Physics.Raycast(ray, out var hit, maxDistance:100, layerMask:layerMask))
+                if (RayVoxel(ray, out int3 voxelPosition, out var _))
                 {
-                    ball.transform.position = hit.point;
-                    worldGenerator.RemoveVoxel(RoundUpRaycast(hit));
+                    worldGenerator.RemoveVoxel(voxelPosition);
                 }
             }
         }
 
-        private RaycastHit RoundUpRaycast(RaycastHit raycastHit)
+        public bool RayVoxel(Ray ray, out int3 voxelPosition, out int3 hitNormal,
+            float maxDistance = 10)
         {
-            if (raycastHit.normal.x != 0)
+            int3 traverse = new int3(0, 0, 0);
+            int3 startingVoxel = new int3(Mathf.FloorToInt(ray.origin.x), Mathf.FloorToInt(ray.origin.y),
+                Mathf.FloorToInt(ray.origin.z));
+            ray.direction.Normalize();
+            int dx = (int)Mathf.Sign(ray.direction.x);
+            int dy = (int)Mathf.Sign(ray.direction.y);
+            int dz = (int)Mathf.Sign(ray.direction.z);
+            float mx = Mathf.Abs(ray.direction.x == 0 ? 9000 : 1 / ray.direction.x);
+            float my = Mathf.Abs(ray.direction.y == 0 ? 9000 : 1 / ray.direction.y);
+            float mz = Mathf.Abs(ray.direction.z == 0 ? 9000 : 1 / ray.direction.z);
+
+            int index = 0;
+
+            float3 currentLength;
+            if (dx < 0)
             {
-                raycastHit.point = new Vector3(math.round(raycastHit.point.x),raycastHit.point.y,raycastHit.point.z);
+                currentLength.x = (ray.origin.x - startingVoxel.x) * mx;
             }
-            else if (raycastHit.normal.y != 0)
+            else
             {
-                raycastHit.point = new Vector3(raycastHit.point.x,math.round(raycastHit.point.y),raycastHit.point.z);
+                currentLength.x = ((startingVoxel.x + 1) - ray.origin.x) * mx;
             }
-            else if (raycastHit.normal.z != 0)
+
+            if (dy < 0)
             {
-                raycastHit.point = new Vector3(raycastHit.point.x,raycastHit.point.y,math.round(raycastHit.point.z));
+                currentLength.y = (ray.origin.y - startingVoxel.y) * my;
             }
-            return raycastHit;
+            else
+            {
+                currentLength.y = ((startingVoxel.y + 1) - ray.origin.y) * my;
+            }
+
+            if (dz < 0)
+            {
+                currentLength.z = (ray.origin.z - startingVoxel.z) * mz;
+            }
+            else
+            {
+                currentLength.z = ((startingVoxel.z + 1) - ray.origin.z) * mz;
+            }
+
+            while (Mathf.Abs(traverse.x) + Mathf.Abs(traverse.y) + Mathf.Abs(traverse.z) < maxDistance)
+            {
+                if (currentLength.x <= currentLength.y && currentLength.x <= currentLength.z)
+                {
+                    traverse.x += dx;
+                    currentLength.x += mx;
+                    hitNormal = new int3(-dx, 0, 0);
+                }
+                else if (currentLength.y <= currentLength.x && currentLength.y <= currentLength.z)
+                {
+                    traverse.y += dy;
+                    currentLength.y += my;
+                    hitNormal = new int3(0, -dy, 0);
+                }
+                else //z is shortest
+                {
+                    traverse.z += dz;
+                    currentLength.z += mz;
+                    hitNormal = new int3(0, 0, -dz);
+                }
+
+                if (!worldGenerator.IsVoxelSolid(startingVoxel + traverse))
+                    continue;
+
+                voxelPosition = startingVoxel + traverse;
+                return true;
+            }
+
+            voxelPosition = new int3(0, 0, 0);
+            hitNormal = new int3(0, 0, 0);
+            return false;
         }
     }
 }
