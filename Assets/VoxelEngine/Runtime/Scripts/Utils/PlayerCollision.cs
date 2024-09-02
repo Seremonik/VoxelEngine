@@ -22,7 +22,7 @@ namespace VoxelEngine
             }
         }
 
-        private void Update()
+        private void FixedUpdate()
         {
             int3 newPosition = new int3((int)math.floor(transform.position.x), (int)math.floor(transform.position.y),
                 (int)math.floor(transform.position.z));

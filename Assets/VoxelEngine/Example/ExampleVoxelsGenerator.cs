@@ -18,11 +18,11 @@ namespace VoxelEngine.Example
         public void Execute()
         {
             PerformanceMarker.Begin();
-            CalculateBitMatrix(BitMatrix, Voxels);
+            CalculateBitMatrix();
             PerformanceMarker.End();
         }
 
-        private static void CalculateBitMatrix(NativeArray<ulong> bitMatrix, NativeArray<byte> voxels)
+        private void CalculateBitMatrix()
         {
             for (int x = 0; x < VoxelEngineConstants.CHUNK_VOXEL_SIZE; x++)
             {
@@ -31,17 +31,17 @@ namespace VoxelEngine.Example
                     for (int z = 0; z < VoxelEngineConstants.CHUNK_VOXEL_SIZE; z++)
                     {
                         bool isSolid =
-                            voxels[
+                            Voxels[
                                 x + (y * VoxelEngineConstants.CHUNK_VOXEL_SIZE) +
                                 (z * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED)] != 0;
                         if (!isSolid)
                             continue;
 
-                        bitMatrix[z + (y * VoxelEngineConstants.CHUNK_VOXEL_SIZE)] |= 1UL << x; // Left-Right
-                        bitMatrix[
+                        BitMatrix[z + (y * VoxelEngineConstants.CHUNK_VOXEL_SIZE)] |= 1UL << x; // Left-Right
+                        BitMatrix[
                             x + (z * VoxelEngineConstants.CHUNK_VOXEL_SIZE) +
                             VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED] |= 1UL << y; // Top-Bottom
-                        bitMatrix[
+                        BitMatrix[
                             x + (y * VoxelEngineConstants.CHUNK_VOXEL_SIZE) +
                             VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED * 2] |= 1UL << z; // Front-Back
                     }
@@ -61,11 +61,11 @@ namespace VoxelEngine.Example
         public void Execute()
         {
             PerformanceMarker.Begin();
-            GetVoxelBuffer(VoxelBuffer, Voxels);
+            GetVoxelBuffer();
             PerformanceMarker.End();
         }
 
-        private void GetVoxelBuffer(NativeArray<uint> voxelBuffer, NativeArray<byte> voxels)
+        private void GetVoxelBuffer()
         {
             for (int x = 1; x < VoxelEngineConstants.CHUNK_VOXEL_SIZE - 1; x++)
             {
@@ -77,13 +77,34 @@ namespace VoxelEngine.Example
                                           (z - 1) / 4 * (VoxelEngineConstants.CHUNK_VOXEL_SIZE - 2) *
                                           (VoxelEngineConstants.CHUNK_VOXEL_SIZE - 2);
                         uint voxel =
-                            voxels[
+                            Voxels[
                                 x + y * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
                                 (z * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED)];
-                        voxelBuffer[bufferIndex] |= voxel << (3 - ((z - 1) % 4)) * 8;
+                        VoxelBuffer[bufferIndex] |= voxel << (3 - ((z - 1) % 4)) * 8;
                     }
                 }
             }
+        }
+    }
+    
+    [BurstCompile]
+    public struct VoxelLightingJob : IJob
+    {
+        [ReadOnly]
+        public NativeArray<byte> Voxels;
+        public NativeArray<byte> LightValues;
+        public ProfilerMarker PerformanceMarker;
+
+        public void Execute()
+        {
+            PerformanceMarker.Begin();
+            CalculateSunValue();
+            PerformanceMarker.End();
+        }
+
+        private void CalculateSunValue()
+        {
+            
         }
     }
 

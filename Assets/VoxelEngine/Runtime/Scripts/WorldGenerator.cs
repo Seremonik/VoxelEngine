@@ -65,24 +65,23 @@ namespace VoxelEngine
 
         public void GenerateWorld()
         {
-            scheduledChunksCreation.Enqueue(new int3(0, 0, 0));
-            // SpiralOutward(engineSettings.WorldRadius, 0, 0,
-            //     (x, z) => scheduledChunksCreation.Enqueue(new int3(x, 0, z)));
+            //scheduledChunksCreation.Enqueue(new int3(0, 0, 0));
+            SpiralOutward(engineSettings.WorldRadius, 0, 0,
+                (x, z) => scheduledChunksCreation.Enqueue(new int3(x, 0, z)));
         }
-        
+
         public bool IsVoxelSolid(int3 voxelPosition)
         {
-            int3 chunkPosition = new int3(
-                (int)Mathf.Floor(voxelPosition.x / 62f) * 62,
-                (int)Mathf.Floor(voxelPosition.y / 62f) * 62,
-                (int)Mathf.Floor(voxelPosition.z / 62f) * 62);
-            chunkPosition *= 62;
-            if(visibleChunks.TryGetValue(chunkPosition, out var chunk))
+            var chunkPosition = new int3(
+                (int)Mathf.Floor(voxelPosition.x / 62f),
+                (int)Mathf.Floor(voxelPosition.y / 62f),
+                (int)Mathf.Floor(voxelPosition.z / 62f));
+
+            if (visibleChunks.TryGetValue(chunkPosition, out var chunk))
             {
-                voxelPosition += 1;
                 return chunk.ChunkData.Voxels[
-                    (voxelPosition.x % 62) + (voxelPosition.y % 62) * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
-                    (voxelPosition.z % 62) * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED] != 0;
+                    (voxelPosition.x % 62 + 1) + (voxelPosition.y % 62 + 1) * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
+                    (voxelPosition.z % 62 + 1) * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED] != 0;
             }
 
             return false;
@@ -90,33 +89,88 @@ namespace VoxelEngine
 
         public void RemoveVoxel(int3 voxelPosition)
         {
-            int3 chunk = ChangeVoxel(voxelPosition, 0);
-            RefreshChunk(chunk, false);
+            if (ChangeVoxel(voxelPosition, 0, out int3 chunk))
+            {
+                RefreshChunk(chunk, false);
+            }
+
+            if (voxelPosition.x% 62 == 0)
+                RefreshChunk(chunk + new int3(-1, 0, 0), false);
+            if (voxelPosition.x% 62 == 61)
+                RefreshChunk(chunk + new int3(1, 0, 0), false);
+            if (voxelPosition.y% 62 == 0)
+                RefreshChunk(chunk + new int3(0, -1, 0), false);
+            if (voxelPosition.y% 62 == 61)
+                RefreshChunk(chunk + new int3(0, 1, 0), false);
+            if (voxelPosition.z% 62 == 0)
+                RefreshChunk(chunk + new int3(0, 0, -1), false);
+            if (voxelPosition.z% 62 == 61)
+                RefreshChunk(chunk + new int3(0, 0, 1), false);
         }
 
         public void AddVoxel(int3 voxelPosition, byte voxelId)
         {
-            int3 chunk = ChangeVoxel(voxelPosition, 15);
-            RefreshChunk(chunk, true);
+            if (ChangeVoxel(voxelPosition, 15, out int3 chunk))
+            {
+                RefreshChunk(chunk, true);
+            }
         }
 
-        private int3 ChangeVoxel(int3 position, byte newValue)
+        private bool ChangeVoxel(int3 position, byte newValue, out int3 chunkPosition)
         {
-            position += 1; //Offset by one as we have padding of 1. Instead of 64 we render 62
-            int3 chunkPosition = position / 62;
+            chunkPosition = (int3)math.floor(position / 62);
             position %= 62;
 
-            visibleChunks.TryGetValue(chunkPosition, out var chunk);
-            chunk.ChunkData.Voxels[
-                position.x + position.y * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
-                position.z * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED] = newValue;
-            return chunkPosition;
+            position += 1; //Offset by one as we have padding of 1. Instead of 64 we render 62
+
+            if (visibleChunks.TryGetValue(chunkPosition, out var chunk))
+            {
+                chunk.ChunkData.Voxels[
+                    position.x + position.y * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
+                    position.z * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED] = newValue;
+
+                //Make sure we update neighbor chunks if voxel lays on border
+                if (position.x == 1 && visibleChunks.TryGetValue(chunkPosition + new int3(-1, 0, 0), out chunk))
+                    chunk.ChunkData.Voxels[
+                        63 + position.y * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
+                        position.z * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED] = newValue;
+
+                if (position.x == 62 && visibleChunks.TryGetValue(chunkPosition + new int3(1, 0, 0), out chunk))
+                    chunk.ChunkData.Voxels[
+                        0 + position.y * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
+                        position.z * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED] = newValue;
+
+                if (position.y == 1 && visibleChunks.TryGetValue(chunkPosition + new int3(0, -1, 0), out chunk))
+                    chunk.ChunkData.Voxels[
+                        position.x + 63 * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
+                        position.z * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED] = newValue;
+
+                if (position.y == 62 && visibleChunks.TryGetValue(chunkPosition + new int3(0, 1, 0), out chunk))
+                    chunk.ChunkData.Voxels[
+                        position.x +
+                        position.z * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED] = newValue;
+
+                if (position.z == 1 && visibleChunks.TryGetValue(chunkPosition + new int3(0, 0, -1), out chunk))
+                    chunk.ChunkData.Voxels[
+                        position.x + position.y * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
+                        63 * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED] = newValue;
+
+                if (position.z == 62 && visibleChunks.TryGetValue(chunkPosition + new int3(0, 0, 1), out chunk))
+                    chunk.ChunkData.Voxels[
+                        position.x + position.y * VoxelEngineConstants.CHUNK_VOXEL_SIZE] = newValue;
+
+                return true;
+            }
+
+            return false;
         }
 
         private void RefreshChunk(int3 chunkPosition, bool isAddition)
         {
-            visibleChunks.TryGetValue(chunkPosition, out var chunk);
-            JobHandle voxelBufferRecalculationHandle = new JobHandle();
+            if (!visibleChunks.TryGetValue(chunkPosition, out var chunk))
+                return;
+
+            var voxelBufferRecalculationHandle = new JobHandle();
             if (isAddition)
             {
                 voxelBufferRecalculationHandle =
