@@ -2,13 +2,10 @@ Shader "Custom/DebugVoxelTextureAtlas"
 {
     Properties
     {
-        _MainTex ("Texture", 2D) = "white" {}
-        _AtlasSize ("Atlas Size", int) = 16
-        _SpriteSize ("Sprite Size", float) = 0.0625
+        _TexArray ("Texture Array", 2DArray) = "white" {}
         _ChunkSize ("Chunk Size", int) = 32
         _ChunkSizeSquared ("Chunk Size Squared", int) = 1024
         _Color ("Color", Color) = (1,1,1,1)
-        _AmbientBoost ("Ambient Boost", Range(0, 1)) = 0.2
     }
     SubShader
     {
@@ -23,13 +20,11 @@ Shader "Custom/DebugVoxelTextureAtlas"
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
-            #pragma multi_compile_fwdbase
-            #pragma shader_feature _ SHADOWS_SCREEN
             #include <AutoLight.cginc>
-
             #include "UnityCG.cginc"
-            #include "Lighting.cginc"
 
+            UNITY_DECLARE_TEX2DARRAY(_TexArray);
+            
             struct appdata
             {
                 int encodedData : TEXCOORD0;
@@ -45,14 +40,10 @@ Shader "Custom/DebugVoxelTextureAtlas"
             };
 
             StructuredBuffer<int> voxelBuffer;
-
-            sampler2D _MainTex;
+            
             float4 _Color;
-            int _AtlasSize;
-            float _SpriteSize;
             int _ChunkSize;
             int _ChunkSizeSquared;
-            float _AmbientBoost;
 
             // Function to decode packed data
             void unpackVertexData(uint packedData, out float3 pos, out float faceIndex, out float sunLight)
@@ -160,12 +151,8 @@ Shader "Custom/DebugVoxelTextureAtlas"
                     uv = i.localPos.xy;
                 }
                 const int voxelId = getVoxelId(voxel_pos, i.faceIndex);
-
-                const float2 spriteOffset = float2((voxelId % _AtlasSize) * _SpriteSize,
-                                                   (voxelId / _AtlasSize) * _SpriteSize);
-                uv = spriteOffset + frac(uv) / _AtlasSize;
-
-                fixed4 tex_color = tex2D(_MainTex, uv) * _Color;
+                
+                fixed4 tex_color = UNITY_SAMPLE_TEX2DARRAY(_TexArray, float3(uv,voxelId)) * _Color;
 
                 float artificialLight = (1,1,1,1);
                 float sunLight = pow(0.9, (15 - i.sunLight)) * 1;
