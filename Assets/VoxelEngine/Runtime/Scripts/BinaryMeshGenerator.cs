@@ -172,33 +172,25 @@ namespace VoxelEngine
             {
                 int x = GetVoxelForAxis(bitIndex - 1, j - 1, i, axisIndex);
                 result[0] += x;
-                //result[1] =  result[0];
             }
-
 
             if (result[1] != 0) //Check if corner voxel is actually visible
             {
                 int x = GetVoxelForAxis(bitIndex + 1, j - 1, i, axisIndex);
                 result[1] += x;
-                //result[2] = result[1] ;
             }
-
 
             if (result[2] != 0) //Check if corner voxel is actually visible
             {
                 int x = GetVoxelForAxis(bitIndex + 1, j + 1, i, axisIndex);
                 result[2] += x;
-                //result[3] = result[2];
             }
-
 
             if (result[3] != 0) //Check if corner voxel is actually visible
             {
                 int x = GetVoxelForAxis(bitIndex - 1, j + 1, i, axisIndex);
                 result[3] += x;
-                // result[0] = result[3];
             }
-
 
             result += 15; //Add our voxel as being fully lit
             result /= 4; //Average each corner 
