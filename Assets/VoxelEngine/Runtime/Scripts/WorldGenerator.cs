@@ -77,11 +77,15 @@ namespace VoxelEngine
                 (int)Mathf.Floor(voxelPosition.y / 62f),
                 (int)Mathf.Floor(voxelPosition.z / 62f));
 
+            int modX = (voxelPosition.x % 62 + 62) % 62;
+            int modY = (voxelPosition.y % 62 + 62) % 62;
+            int modZ = (voxelPosition.z % 62 + 62) % 62;
+            
             if (visibleChunks.TryGetValue(chunkPosition, out var chunk))
             {
                 return chunk.ChunkData.Voxels[
-                    (voxelPosition.x % 62 + 1) + (voxelPosition.y % 62 + 1) * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
-                    (voxelPosition.z % 62 + 1) * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED] != 0;
+                    (modX + 1) + (modY + 1) * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
+                    (modZ + 1) * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED] != 0;
             }
 
             return false;
@@ -93,24 +97,28 @@ namespace VoxelEngine
             {
                 RefreshChunk(chunk, false);
             }
+            
+            int modX = (voxelPosition.x % 62 + 62) % 62;
+            int modY = (voxelPosition.y % 62 + 62) % 62;
+            int modZ = (voxelPosition.z % 62 + 62) % 62;
 
-            if (voxelPosition.x% 62 == 0)
+            if (modX == 0)
                 RefreshChunk(chunk + new int3(-1, 0, 0), false);
-            if (voxelPosition.x% 62 == 61)
+            if (modX == 61)
                 RefreshChunk(chunk + new int3(1, 0, 0), false);
-            if (voxelPosition.y% 62 == 0)
+            if (modY == 0)
                 RefreshChunk(chunk + new int3(0, -1, 0), false);
-            if (voxelPosition.y% 62 == 61)
+            if (modY == 61)
                 RefreshChunk(chunk + new int3(0, 1, 0), false);
-            if (voxelPosition.z% 62 == 0)
+            if (modZ == 0)
                 RefreshChunk(chunk + new int3(0, 0, -1), false);
-            if (voxelPosition.z% 62 == 61)
+            if (modZ == 61)
                 RefreshChunk(chunk + new int3(0, 0, 1), false);
         }
 
         public void AddVoxel(int3 voxelPosition, byte voxelId)
         {
-            if (ChangeVoxel(voxelPosition, 15, out int3 chunk))
+            if (ChangeVoxel(voxelPosition, voxelId, out int3 chunk))
             {
                 RefreshChunk(chunk, true);
             }
@@ -118,8 +126,11 @@ namespace VoxelEngine
 
         private bool ChangeVoxel(int3 position, byte newValue, out int3 chunkPosition)
         {
-            chunkPosition = (int3)math.floor(position / 62);
-            position %= 62;
+            chunkPosition = new int3(
+                (int)Mathf.Floor(position.x / 62f),
+                (int)Mathf.Floor(position.y / 62f),
+                (int)Mathf.Floor(position.z / 62f));
+            position = (position % 62 + 62) % 62;
 
             position += 1; //Offset by one as we have padding of 1. Instead of 64 we render 62
 

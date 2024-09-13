@@ -6,41 +6,36 @@ namespace VoxelEngine
 {
     public class ChunkRaycaster : MonoBehaviour
     {
+        public int3 VoxelPosition => voxelPosition;
+        public float3 HitPosition => hitPosition;
+        public int3 HitNormal => hitNormal;
+        public bool HitTerrain => hitTerrain;
+
+
+        private int3 voxelPosition;
+        private float3 hitPosition;
+        private int3 hitNormal;
+        private bool hitTerrain;
+
         [SerializeField]
         private WorldGenerator worldGenerator;
 
-        public int3 GetVoxelPosition()
-        {
-            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-            if (RayVoxel(ray, out int3 voxelPosition, out int3 _))
-            {
-                return voxelPosition;
-            }
-
-            return new int3(0, 0, 0);
-        }
-
         private void Update()
         {
-            if (Input.GetMouseButtonDown(0))
+            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            hitTerrain = RayVoxel(ray, out voxelPosition, out hitPosition, out hitNormal);
+
+            if (Input.GetMouseButtonDown(0) && HitTerrain)
             {
-                Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-                if (RayVoxel(ray, out int3 voxelPosition, out int3 normal))
-                {
-                    worldGenerator.AddVoxel(voxelPosition + normal, 15);
-                }
+                worldGenerator.AddVoxel(VoxelPosition + HitNormal, 15);
             }
-            else if (Input.GetMouseButtonDown(1))
+            else if (Input.GetMouseButtonDown(1) & HitTerrain)
             {
-                Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-                if (RayVoxel(ray, out int3 voxelPosition, out var _))
-                {
-                    worldGenerator.RemoveVoxel(voxelPosition);
-                }
+                worldGenerator.RemoveVoxel(VoxelPosition);
             }
         }
 
-        public bool RayVoxel(Ray ray, out int3 voxelPosition, out int3 hitNormal,
+        public bool RayVoxel(Ray ray, out int3 voxelPosition, out float3 hitPosition, out int3 hitNormal,
             float maxDistance = 10)
         {
             int3 traverse = new int3(0, 0, 0);
@@ -109,11 +104,14 @@ namespace VoxelEngine
                     continue;
 
                 voxelPosition = startingVoxel + traverse;
+                hitPosition = new float3(ray.origin.x + dx * currentLength.x, ray.origin.y + dy * currentLength.y,
+                    ray.origin.z + dz * currentLength.z);
                 return true;
             }
 
             voxelPosition = new int3(0, 0, 0);
             hitNormal = new int3(0, 0, 0);
+            hitPosition = new float3(0, 0, 0);
             return false;
         }
     }

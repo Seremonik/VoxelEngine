@@ -15,6 +15,8 @@ namespace VoxelEngine
         private Transform chunkBorder;
         [SerializeField]
         private ChunkRaycaster chunkRaycaster;
+        [SerializeField]
+        private Transform hitSphere;
         
         [SerializeField, Header("Crosshair Debug Info")]
         private TMP_Text voxelPosition;
@@ -31,16 +33,22 @@ namespace VoxelEngine
                 debugConsoleContainer.SetActive(isOpened);
             }
 
-            if (isOpened)
-            {
-                UpdateChunkBordersPreview();
-                UpdateVoxelPosition();
-            }
+            if (!isOpened) 
+                return;
+            
+            UpdateChunkBordersPreview();
+            UpdateVoxelPosition();
+            UpdateHitSphere();
         }
 
+        private void UpdateHitSphere()
+        {
+            hitSphere.transform.position = chunkRaycaster.HitPosition;
+        }
+        
         private void UpdateVoxelPosition()
         {
-            int3 voxelPosition = chunkRaycaster.GetVoxelPosition();
+            int3 voxelPosition = chunkRaycaster.VoxelPosition;
             this.voxelPosition.text = $"Voxel: ({voxelPosition.x}, {voxelPosition.y},{voxelPosition.z})";
         }
         
