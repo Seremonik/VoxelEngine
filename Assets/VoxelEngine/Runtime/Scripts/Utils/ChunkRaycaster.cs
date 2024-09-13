@@ -42,70 +42,53 @@ namespace VoxelEngine
             int3 startingVoxel = new int3(Mathf.FloorToInt(ray.origin.x), Mathf.FloorToInt(ray.origin.y),
                 Mathf.FloorToInt(ray.origin.z));
             ray.direction.Normalize();
-            int dx = (int)Mathf.Sign(ray.direction.x);
-            int dy = (int)Mathf.Sign(ray.direction.y);
-            int dz = (int)Mathf.Sign(ray.direction.z);
+            int stepX = (int)Mathf.Sign(ray.direction.x);
+            int stepY = (int)Mathf.Sign(ray.direction.y);
+            int stepZ = (int)Mathf.Sign(ray.direction.z);
             float mx = Mathf.Abs(ray.direction.x == 0 ? 9000 : 1 / ray.direction.x);
             float my = Mathf.Abs(ray.direction.y == 0 ? 9000 : 1 / ray.direction.y);
             float mz = Mathf.Abs(ray.direction.z == 0 ? 9000 : 1 / ray.direction.z);
 
             int index = 0;
 
-            float3 currentLength;
-            if (dx < 0)
-            {
-                currentLength.x = (ray.origin.x - startingVoxel.x) * mx;
-            }
-            else
-            {
-                currentLength.x = ((startingVoxel.x + 1) - ray.origin.x) * mx;
-            }
-
-            if (dy < 0)
-            {
-                currentLength.y = (ray.origin.y - startingVoxel.y) * my;
-            }
-            else
-            {
-                currentLength.y = ((startingVoxel.y + 1) - ray.origin.y) * my;
-            }
-
-            if (dz < 0)
-            {
-                currentLength.z = (ray.origin.z - startingVoxel.z) * mz;
-            }
-            else
-            {
-                currentLength.z = ((startingVoxel.z + 1) - ray.origin.z) * mz;
-            }
+            float currentLengthX = stepX < 0
+                ? (ray.origin.x - startingVoxel.x) * mx
+                : ((startingVoxel.x + 1) - ray.origin.x) * mx;
+            float currentLengthY = stepY < 0
+                ? (ray.origin.y - startingVoxel.y) * my
+                : ((startingVoxel.y + 1) - ray.origin.y) * my;
+            float currentLengthZ = stepZ < 0
+                ? (ray.origin.z - startingVoxel.z) * mz
+                : ((startingVoxel.z + 1) - ray.origin.z) * mz;
 
             while (Mathf.Abs(traverse.x) + Mathf.Abs(traverse.y) + Mathf.Abs(traverse.z) < maxDistance)
             {
-                if (currentLength.x <= currentLength.y && currentLength.x <= currentLength.z)
+                if (currentLengthX <= currentLengthY && currentLengthX <= currentLengthZ)
                 {
-                    traverse.x += dx;
-                    currentLength.x += mx;
-                    hitNormal = new int3(-dx, 0, 0);
+                    traverse.x += stepX;
+                    hitPosition = ray.origin + currentLengthX * ray.direction;
+                    currentLengthX += mx;
+                    hitNormal = new int3(-stepX, 0, 0);
                 }
-                else if (currentLength.y <= currentLength.x && currentLength.y <= currentLength.z)
+                else if (currentLengthY <= currentLengthX && currentLengthY <= currentLengthZ)
                 {
-                    traverse.y += dy;
-                    currentLength.y += my;
-                    hitNormal = new int3(0, -dy, 0);
+                    traverse.y += stepY;
+                    hitPosition = ray.origin + currentLengthY * ray.direction;
+                    currentLengthY += my;
+                    hitNormal = new int3(0, -stepY, 0);
                 }
                 else //z is shortest
                 {
-                    traverse.z += dz;
-                    currentLength.z += mz;
-                    hitNormal = new int3(0, 0, -dz);
+                    traverse.z += stepZ;
+                    hitPosition = ray.origin + currentLengthZ * ray.direction;
+                    currentLengthZ += mz;
+                    hitNormal = new int3(0, 0, -stepZ);
                 }
 
                 if (!worldGenerator.IsVoxelSolid(startingVoxel + traverse))
                     continue;
 
                 voxelPosition = startingVoxel + traverse;
-                hitPosition = new float3(ray.origin.x + dx * currentLength.x, ray.origin.y + dy * currentLength.y,
-                    ray.origin.z + dz * currentLength.z);
                 return true;
             }
 

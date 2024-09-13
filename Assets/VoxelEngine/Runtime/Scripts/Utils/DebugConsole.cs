@@ -44,6 +44,7 @@ namespace VoxelEngine
         private void UpdateHitSphere()
         {
             hitSphere.transform.position = chunkRaycaster.HitPosition;
+            hitSphere.transform.forward = new Vector3(chunkRaycaster.HitNormal.x,chunkRaycaster.HitNormal.y,chunkRaycaster.HitNormal.z);
         }
         
         private void UpdateVoxelPosition()
