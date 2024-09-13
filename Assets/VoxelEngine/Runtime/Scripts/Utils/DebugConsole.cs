@@ -14,6 +14,8 @@ namespace VoxelEngine
         [SerializeField]
         private Transform chunkBorder;
         [SerializeField]
+        private WorldGenerator worldGenerator;
+        [SerializeField]
         private ChunkRaycaster chunkRaycaster;
         [SerializeField]
         private Transform hitSphere;
@@ -37,7 +39,7 @@ namespace VoxelEngine
                 return;
             
             UpdateChunkBordersPreview();
-            UpdateVoxelPosition();
+            UpdateCenterText();
             UpdateHitSphere();
         }
 
@@ -47,10 +49,12 @@ namespace VoxelEngine
             hitSphere.transform.forward = new Vector3(chunkRaycaster.HitNormal.x,chunkRaycaster.HitNormal.y,chunkRaycaster.HitNormal.z);
         }
         
-        private void UpdateVoxelPosition()
+        private void UpdateCenterText()
         {
             int3 voxelPosition = chunkRaycaster.VoxelPosition;
+            var lightValue = worldGenerator.GetLightValue(voxelPosition + chunkRaycaster.HitNormal);
             this.voxelPosition.text = $"Voxel: ({voxelPosition.x}, {voxelPosition.y},{voxelPosition.z})";
+            this.voxelPosition.text += $"\nLight: {lightValue}";
         }
         
         private void UpdateChunkBordersPreview()

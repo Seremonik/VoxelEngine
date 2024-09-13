@@ -1926,6 +1926,7 @@ MonoBehaviour:
   playerPosition: {fileID: 1195454615}
   debugConsoleContainer: {fileID: 1851306012}
   chunkBorder: {fileID: 1328400171}
+  worldGenerator: {fileID: 6525561966114098334}
   chunkRaycaster: {fileID: 178682872}
   hitSphere: {fileID: 1360794457}
   voxelPosition: {fileID: 1774283877}

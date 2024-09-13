@@ -86,27 +86,6 @@ namespace VoxelEngine.Example
             }
         }
     }
-    
-    [BurstCompile]
-    public struct VoxelLightingJob : IJob
-    {
-        [ReadOnly]
-        public NativeArray<byte> Voxels;
-        public NativeArray<byte> LightValues;
-        public ProfilerMarker PerformanceMarker;
-
-        public void Execute()
-        {
-            PerformanceMarker.Begin();
-            CalculateSunValue();
-            PerformanceMarker.End();
-        }
-
-        private void CalculateSunValue()
-        {
-            
-        }
-    }
 
     [BurstCompile]
     public struct VoxelGenerationJob : IJob

@@ -17,6 +17,7 @@ namespace VoxelEngine
         private InterfaceReference<IVoxelsGenerator> voxelsGenerator;
         [SerializeField]
         private InterfaceReference<IMeshGenerator> meshGenerator;
+        private LightFloodFillSystem lightFloodFillSystem = new();
         [SerializeField]
         private bool initializeOnStart;
 
@@ -70,6 +71,27 @@ namespace VoxelEngine
                 (x, z) => scheduledChunksCreation.Enqueue(new int3(x, 0, z)));
         }
 
+        public byte GetLightValue(int3 voxelPosition)
+        {
+            var chunkPosition = new int3(
+                (int)Mathf.Floor(voxelPosition.x / 62f),
+                (int)Mathf.Floor(voxelPosition.y / 62f),
+                (int)Mathf.Floor(voxelPosition.z / 62f));
+            
+            int modX = (voxelPosition.x % 62 + 62) % 62;
+            int modY = (voxelPosition.y % 62 + 62) % 62;
+            int modZ = (voxelPosition.z % 62 + 62) % 62;
+            
+            if (visibleChunks.TryGetValue(chunkPosition, out var chunk))
+            {
+                return chunk.ChunkData.Light[
+                    (modX + 1) + (modY + 1) * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
+                    (modZ + 1) * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED];
+            }
+
+            return 0;
+        }
+        
         public bool IsVoxelSolid(int3 voxelPosition)
         {
             var chunkPosition = new int3(
@@ -210,8 +232,9 @@ namespace VoxelEngine
             freeChunk.gameObject.name = $"Chunk({x}, {0},{z})";
             freeChunk.SetChunkData(new ChunkData(x, 0, z));
             var voxelGenerationHandle = voxelsGenerator.Value.ScheduleChunkGeneration(freeChunk.ChunkData);
+            var lightFloodHandle = lightFloodFillSystem.CalculateLight(freeChunk.ChunkData, voxelGenerationHandle);
             var meshGenerationHandle =
-                meshGenerator.Value.ScheduleMeshGeneration(freeChunk.ChunkData, voxelGenerationHandle);
+                meshGenerator.Value.ScheduleMeshGeneration(freeChunk.ChunkData, lightFloodHandle);
 
             freeChunk.GenerationJobHandle = meshGenerationHandle;
             scheduledChunks.Add(freeChunk);

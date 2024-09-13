@@ -8,7 +8,7 @@ namespace VoxelEngine
     {
         //Buffers
         public NativeArray<byte> Voxels;
-        public NativeArray<byte> SunLight;
+        public NativeArray<byte> Light;
         public NativeArray<ulong> BitMatrix;
         public NativeArray<uint> VoxelBuffer;
         public NativeList<int> Triangles;
