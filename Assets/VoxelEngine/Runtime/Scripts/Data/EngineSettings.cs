@@ -7,6 +7,8 @@ namespace VoxelEngine
     [CreateAssetMenu(fileName = "Engine Settings", menuName = "ScriptableObjects/Voxel Engine Settings", order = 1)]
     public class EngineSettings : ScriptableObject
     {
+        [Header("Rendering")]
+        public float AmbientOcclusionStrength; // TODO set the AO strength in Mesh Generator
         [Header("Chunk")]
         public int XChunkSize;
         public int YChunkSize;

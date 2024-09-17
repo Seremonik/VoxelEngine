@@ -17,6 +17,7 @@ namespace VoxelEngine.Example
         private Vector3 velocity;
         private bool isGrounded;
         private float xRotation = 0f;
+        private bool isLocked;
 
         void Start()
         {
@@ -31,6 +32,15 @@ namespace VoxelEngine.Example
             if (Input.GetKeyDown(KeyCode.B))
             {
                 Cursor.lockState = Cursor.lockState == CursorLockMode.Locked ? CursorLockMode.None : CursorLockMode.Locked;
+            }
+            if (Input.GetKeyDown(KeyCode.C))
+            {
+                isLocked = !isLocked;
+            }
+
+            if (isLocked)
+            {
+                return;
             }
             // Mouse look
             float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity * Time.deltaTime;

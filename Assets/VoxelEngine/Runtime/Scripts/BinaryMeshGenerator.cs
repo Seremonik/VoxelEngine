@@ -7,7 +7,6 @@ using UnityEngine;
 
 namespace VoxelEngine
 {
-
     [BurstCompile]
     partial struct BinaryMeshingJob : IJob
     {
@@ -15,6 +14,8 @@ namespace VoxelEngine
         public NativeArray<ulong> BitMatrix;
         [ReadOnly]
         public NativeArray<ulong> TransposeMatrixLookupTable;
+        [ReadOnly]
+        public NativeArray<byte> Light;
 
         public NativeList<int> Triangles;
         public NativeList<uint> Verts;
@@ -155,56 +156,78 @@ namespace VoxelEngine
             i += faceNormal; //move to slice above (+1) or below (-1)
             var result = new int4(0, 0, 0, 0);
 
-            result[0] = GetVoxelForAxis(bitIndex - 1, j, i, axisIndex);
+            result[0] = GetLightForAxis(bitIndex - 1, j, i, axisIndex);
             result[3] = result[0];
-            result[1] = GetVoxelForAxis(bitIndex + 1, j, i, axisIndex);
+            result[1] = GetLightForAxis(bitIndex + 1, j, i, axisIndex);
             result[2] = result[1];
 
-            int currentValue = GetVoxelForAxis(bitIndex, j + 1, i, axisIndex);
+            int currentValue = GetLightForAxis(bitIndex, j + 1, i, axisIndex);
             result[3] += currentValue;
             result[2] += currentValue;
 
-            currentValue = GetVoxelForAxis(bitIndex, j - 1, i, axisIndex);
+            currentValue = GetLightForAxis(bitIndex, j - 1, i, axisIndex);
             result[0] += currentValue;
             result[1] += currentValue;
 
+            currentValue = (int)(GetLightForAxis(bitIndex, j, i, axisIndex)*0.5f); //Add our voxel light value with AO dampening
+
             if (result[0] != 0) //Check if corner voxel is actually visible
             {
-                int x = GetVoxelForAxis(bitIndex - 1, j - 1, i, axisIndex);
+                int x = GetLightForAxis(bitIndex - 1, j - 1, i, axisIndex);
                 result[0] += x;
+            }
+            else
+            {
+                result[0] += currentValue;
             }
 
             if (result[1] != 0) //Check if corner voxel is actually visible
             {
-                int x = GetVoxelForAxis(bitIndex + 1, j - 1, i, axisIndex);
+                int x = GetLightForAxis(bitIndex + 1, j - 1, i, axisIndex);
                 result[1] += x;
+            }
+            else
+            {
+                result[1] += currentValue;
             }
 
             if (result[2] != 0) //Check if corner voxel is actually visible
             {
-                int x = GetVoxelForAxis(bitIndex + 1, j + 1, i, axisIndex);
+                int x = GetLightForAxis(bitIndex + 1, j + 1, i, axisIndex);
                 result[2] += x;
+            }
+            else
+            {
+                result[2] += currentValue;
             }
 
             if (result[3] != 0) //Check if corner voxel is actually visible
             {
-                int x = GetVoxelForAxis(bitIndex - 1, j + 1, i, axisIndex);
+                int x = GetLightForAxis(bitIndex - 1, j + 1, i, axisIndex);
                 result[3] += x;
             }
+            else
+            {
+                result[3] += currentValue;
+            }
 
-            result += 15; //Add our voxel as being fully lit
+            result += (int)(GetLightForAxis(bitIndex, j, i, axisIndex) * 2f); //Add our voxel light value with AO dampening
             result /= 4; //Average each corner 
-            return result;
+            return math.clamp(result, 0, 15);
         }
 
-        private int GetVoxelForAxis(int x, int y, int z, int axisIndex)
+        private int GetLightForAxis(int x, int y, int z, int axisIndex)
         {
-            return ((BitMatrix[
-                x +
-                y * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
-                VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED * axisIndex] >> z) & 1UL) == 0
-                ? 15
-                : 0;
+            return axisIndex switch
+            {
+                0 => Light[
+                    z + y * VoxelEngineConstants.CHUNK_VOXEL_SIZE + VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED * x],
+                1 => Light[
+                    x + z * VoxelEngineConstants.CHUNK_VOXEL_SIZE + VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED * y],
+                2 => Light[
+                    x + y * VoxelEngineConstants.CHUNK_VOXEL_SIZE + VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED * z],
+                _ => 0
+            };
         }
 
         private void DrawFace(int x, int y, int z, int width, int height, SideOrientation sideOrientation,
@@ -410,6 +433,7 @@ namespace VoxelEngine
                 Triangles = chunkData.Triangles,
                 Verts = chunkData.Vertices,
                 BitMatrix = chunkData.BitMatrix,
+                Light = chunkData.Light,
                 CullingBitMatrix =
                     new NativeArray<ulong>(
                         VoxelEngineConstants.CHUNK_VOXEL_SIZE * VoxelEngineConstants.CHUNK_VOXEL_SIZE * 6,

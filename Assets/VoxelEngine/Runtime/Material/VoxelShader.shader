@@ -155,7 +155,7 @@ Shader "Custom/DebugVoxelTextureAtlas"
                 fixed4 tex_color = UNITY_SAMPLE_TEX2DARRAY(_TexArray, float3(uv,voxelId)) * _Color;
 
                 float artificialLight = (1,1,1,1);
-                float sunLight = pow(0.9, (15 - i.sunLight)) * 1;
+                float sunLight = pow(0.7, (15 - i.sunLight)) * 1;
                 const fixed3 diffuse = lightValue(i.faceIndex) * tex_color.rgb * sunLight;
 
                 return fixed4(diffuse, tex_color.a);
