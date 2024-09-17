@@ -85,12 +85,15 @@ namespace VoxelEngine
                 x + y * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
                 z * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED];
         }
-        
+
         private byte GetLightValue(int x, int y,int z)
         {
-            if (x <= 0 || x >= 62 || y <= 0 || y >= 62 ||z <= 0 || z >= 62)
+            if (x <= 0 || x >= 63 || y <= 0 || y >= 63 ||z <= 0 || z >= 63)
                 return 15; // stop propagating on the border
-            
+
+            if (GetVoxel(x,y,z) != 0) //don't propagate in solid
+                return 15;
+
             return Lights[
                 x + y * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
                 z * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED];
