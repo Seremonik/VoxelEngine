@@ -22,6 +22,7 @@ Shader "Custom/DebugVoxelTextureAtlas"
             #pragma fragment frag
             #include <AutoLight.cginc>
             #include "UnityCG.cginc"
+            #define PI 3.14159265359
 
             UNITY_DECLARE_TEX2DARRAY(_TexArray);
             
@@ -153,9 +154,10 @@ Shader "Custom/DebugVoxelTextureAtlas"
                 const int voxelId = getVoxelId(voxel_pos, i.faceIndex);
                 
                 fixed4 tex_color = UNITY_SAMPLE_TEX2DARRAY(_TexArray, float3(uv,voxelId)) * _Color;
-
+                //tex_color = 1;
                 float artificialLight = (1,1,1,1);
-                float sunLight = pow(0.7, (15 - i.sunLight)) * 1;
+                float sunLight = 1 - cos((i.sunLight/15.0 * PI) / 2);
+                sunLight+=0.005f;
                 const fixed3 diffuse = lightValue(i.faceIndex) * tex_color.rgb * sunLight;
 
                 return fixed4(diffuse, tex_color.a);

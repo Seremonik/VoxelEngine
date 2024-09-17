@@ -169,16 +169,10 @@ namespace VoxelEngine
             result[0] += currentValue;
             result[1] += currentValue;
 
-            currentValue = (int)(GetLightForAxis(bitIndex, j, i, axisIndex)*0.5f); //Add our voxel light value with AO dampening
-
             if (result[0] != 0) //Check if corner voxel is actually visible
             {
                 int x = GetLightForAxis(bitIndex - 1, j - 1, i, axisIndex);
                 result[0] += x;
-            }
-            else
-            {
-                result[0] += currentValue;
             }
 
             if (result[1] != 0) //Check if corner voxel is actually visible
@@ -186,19 +180,11 @@ namespace VoxelEngine
                 int x = GetLightForAxis(bitIndex + 1, j - 1, i, axisIndex);
                 result[1] += x;
             }
-            else
-            {
-                result[1] += currentValue;
-            }
 
             if (result[2] != 0) //Check if corner voxel is actually visible
             {
                 int x = GetLightForAxis(bitIndex + 1, j + 1, i, axisIndex);
                 result[2] += x;
-            }
-            else
-            {
-                result[2] += currentValue;
             }
 
             if (result[3] != 0) //Check if corner voxel is actually visible
@@ -206,12 +192,8 @@ namespace VoxelEngine
                 int x = GetLightForAxis(bitIndex - 1, j + 1, i, axisIndex);
                 result[3] += x;
             }
-            else
-            {
-                result[3] += currentValue;
-            }
 
-            result += (int)(GetLightForAxis(bitIndex, j, i, axisIndex) * 2f); //Add our voxel light value with AO dampening
+            result += GetLightForAxis(bitIndex, j, i, axisIndex); //Add our voxel light value
             result /= 4; //Average each corner 
             return math.clamp(result, 0, 15);
         }
