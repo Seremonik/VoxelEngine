@@ -37,6 +37,7 @@ namespace VoxelEngine
                     while (currentVoxelValue == 0)
                     {
                         LightsQueue.Enqueue(new int4(x, currentY, z, 15));
+                        SetLight(Lights, new int4(x, currentY, z, 15));
                         currentY--;
                         currentVoxelValue = GetVoxel(Voxels, x, currentY, z);
                     }
@@ -44,16 +45,12 @@ namespace VoxelEngine
             }
         }
 
-        public static void PropagateLight(NativeQueue<int4> LightsQueue, NativeArray<byte> Voxels,
-            NativeArray<byte> Lights, NativeArray<int3> neighborOffsets)
+        public static void PropagateLight(NativeQueue<int4> lightsQueue, NativeArray<byte> voxels,
+            NativeArray<byte> lights, NativeArray<int3> neighborOffsets)
         {
-            while (LightsQueue.Count > 0)
+            while (lightsQueue.Count > 0)
             {
-                int4 lightSource = LightsQueue.Dequeue();
-
-                if (GetLightValue(Voxels, Lights, lightSource) >= lightSource.w)
-                    continue;
-                SetLight(Lights, lightSource);
+                int4 lightSource = lightsQueue.Dequeue();
 
                 for (int i = 0; i < neighborOffsets.Length; i++)
                 {
@@ -62,42 +59,78 @@ namespace VoxelEngine
                         lightSource.y + neighborOffsets[i].y,
                         lightSource.z + neighborOffsets[i].z);
 
-                    if (GetLightValue(Lights, neighborPosition.x, neighborPosition.y, neighborPosition.z) >
-                        lightSource.w - 2) continue;
-                    
-                    if (GetVoxel(Voxels, neighborPosition.x, neighborPosition.y, neighborPosition.z) == 0)
-                    {
-                        LightsQueue.Enqueue(new int4(neighborPosition, lightSource.w - 1));
-                    }
+                    if (GetLightValue(lights, neighborPosition) >= lightSource.w - 1)
+                        continue; // Ignore higher light values
+
+                    if (GetVoxel(voxels, neighborPosition.x, neighborPosition.y, neighborPosition.z) != 0)
+                        continue; // Ignore solid voxels
+
+                    if (lightSource.w <= 1)
+                        continue; //Ignore when light is less than 1
+
+                    SetLight(lights, new int4(neighborPosition, lightSource.w - 1));
+                    lightsQueue.Enqueue(new int4(neighborPosition, lightSource.w - 1));
                 }
             }
         }
 
-        public static byte GetVoxel(NativeArray<byte> Voxels, int x, int y, int z)
+        public static void PropagateDarkness(NativeQueue<int4> darknessQueue, NativeQueue<int4> lightsQueue,
+            NativeArray<byte> lights, NativeArray<int3> neighborOffsets)
         {
-            return Voxels[
+            while (darknessQueue.Count > 0)
+            {
+                int4 darknessSource = darknessQueue.Dequeue();
+
+                for (int i = 0; i < neighborOffsets.Length; i++)
+                {
+                    int3 neighborPosition = new int3(
+                        darknessSource.x + neighborOffsets[i].x,
+                        darknessSource.y + neighborOffsets[i].y,
+                        darknessSource.z + neighborOffsets[i].z);
+
+                    int neighborLight = GetLightValue(lights, neighborPosition);
+                    
+                    if (neighborLight == 15 || neighborLight >
+                        darknessSource.w) //Check if there is stronger light source
+                    {
+                        //Add light for further propagation
+                        lightsQueue.Enqueue(new int4(neighborPosition, darknessSource.w));
+                        continue;
+                    }
+
+                    if (neighborLight == 0)
+                        continue; // Ignore 0 light values
+
+                    if (darknessSource.w <= 1)
+                        continue; //stop Darkness propagation when we reach 1 light
+
+                    SetLight(lights, new int4(neighborPosition.xyz, 0));
+                    darknessQueue.Enqueue(new int4(neighborPosition, darknessSource.w - 1));
+                }
+            }
+        }
+
+        public static byte GetVoxel(NativeArray<byte> voxels, int x, int y, int z)
+        {
+            return voxels[
                 x + y * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
                 z * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED];
         }
 
-        public static byte GetLightValue(NativeArray<byte> Lights, int x, int y, int z)
+        public static byte GetLightValue(NativeArray<byte> lights, int3 position)
         {
-            if (x <= 0 || x >= 63 || y <= 0 || y >= 63 || z <= 0 || z >= 63)
+            if (position.x <= 0 || position.x >= 63 || position.y <= 0 || position.y >= 63 || position.z <= 0 ||
+                position.z >= 63)
                 return 15; // stop propagating on the border
 
-            return Lights[
-                x + y * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
-                z * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED];
+            return lights[
+                position.x + position.y * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
+                position.z * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED];
         }
 
-        private static byte GetLightValue(NativeArray<byte> Voxels, NativeArray<byte> Lights, int4 lightPosition)
+        public static void SetLight(NativeArray<byte> lights, int4 lightPosition)
         {
-            return GetLightValue(Lights, lightPosition.x, lightPosition.y, lightPosition.z);
-        }
-
-        public static void SetLight(NativeArray<byte> Lights, int4 lightPosition)
-        {
-            Lights[
+            lights[
                 lightPosition.x + lightPosition.y * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
                 lightPosition.z * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED] = (byte)lightPosition.w;
         }
@@ -134,30 +167,33 @@ namespace VoxelEngine
                         VoxelEngineConstants.CHUNK_VOXEL_SIZE, Allocator.Persistent);
             }
 
+            var lightsQueue = new NativeQueue<int4>(Allocator.TempJob);
             var job = new SunLightFloodFillJob()
             {
                 NeighborOffsets = neighborOffsets,
                 Lights = chunkData.Light,
                 Voxels = chunkData.Voxels,
-                LightsQueue = new NativeQueue<int4>(Allocator.TempJob),
+                LightsQueue = lightsQueue,
             };
 
-            return job.Schedule(dependency);
+            var handle = job.Schedule(dependency);
+            lightsQueue.Dispose(handle);
+            return handle;
         }
 
         public void RemoveVoxel(ChunkData chunkData, int3 voxelPosition)
         {
+            voxelPosition += 1; //Offset by one as we have padding of 1. Instead of 64 we render 62
             var lightsQueue = new NativeQueue<int4>(Allocator.Temp);
 
-            voxelPosition += 1; //Offset by one as we have padding of 1. Instead of 64 we render 62
-            
+            int3 voxelAbove = voxelPosition + new int3(0, 1, 0);
             //Check if we unblocked the sun
-            if (SunLightFloodFillJob.GetLightValue(chunkData.Light,
-                    voxelPosition.x, voxelPosition.y + 1, voxelPosition.z) == 15)
+            if (SunLightFloodFillJob.GetLightValue(chunkData.Light, voxelAbove) == 15)
             {
                 while (SunLightFloodFillJob.GetVoxel(chunkData.Voxels, voxelPosition.x, voxelPosition.y,
                            voxelPosition.z) == 0)
                 {
+                    SunLightFloodFillJob.SetLight(chunkData.Light, new int4(voxelPosition, 15));
                     lightsQueue.Enqueue(new int4(voxelPosition, 15));
                     voxelPosition.y -= 1;
                 }
@@ -170,19 +206,43 @@ namespace VoxelEngine
                 for (int i = 0; i < neighborOffsets.Length && newLightValue < 14; i++)
                 {
                     int3 neighborPosition = voxelPosition + neighborOffsets[i];
-                    int neighborValue = SunLightFloodFillJob.GetLightValue(chunkData.Light,
-                        neighborPosition.x, neighborPosition.y, neighborPosition.z);
+                    int neighborValue = SunLightFloodFillJob.GetLightValue(chunkData.Light, neighborPosition);
                     newLightValue = math.max(newLightValue, neighborValue - 1);
                 }
-                
+
+                SunLightFloodFillJob.SetLight(chunkData.Light, new int4(voxelPosition, newLightValue));
                 lightsQueue.Enqueue(new int4(voxelPosition, newLightValue));
             }
 
             SunLightFloodFillJob.PropagateLight(lightsQueue, chunkData.Voxels, chunkData.Light, neighborOffsets);
+            lightsQueue.Dispose();
         }
 
-        public void AddVoxel(int3 voxelPosition)
+        public void AddVoxel(ChunkData chunkData, int3 voxelPosition)
         {
+            voxelPosition += 1; //Offset by one as we have padding of 1. Instead of 64 we render 62
+
+            var lightsQueue = new NativeQueue<int4>(Allocator.Temp);
+            var darknessQueue = new NativeQueue<int4>(Allocator.Temp);
+
+            int currentLightValue = SunLightFloodFillJob.GetLightValue(chunkData.Light, voxelPosition);
+            SunLightFloodFillJob.SetLight(chunkData.Light, new int4(voxelPosition, 0));
+            darknessQueue.Enqueue(new int4(voxelPosition, currentLightValue));
+            voxelPosition.y -= 1;
+
+            while (SunLightFloodFillJob.GetLightValue(chunkData.Light, voxelPosition) == 15)
+            {
+                SunLightFloodFillJob.SetLight(chunkData.Light, new int4(voxelPosition, 0));
+                darknessQueue.Enqueue(new int4(voxelPosition, 15));
+                voxelPosition.y -= 1;
+            }
+
+            SunLightFloodFillJob.PropagateDarkness(darknessQueue, lightsQueue, chunkData.Light,
+                neighborOffsets);
+            SunLightFloodFillJob.PropagateLight(lightsQueue, chunkData.Voxels, chunkData.Light, neighborOffsets);
+
+            lightsQueue.Dispose();
+            darknessQueue.Dispose();
         }
     }
 }

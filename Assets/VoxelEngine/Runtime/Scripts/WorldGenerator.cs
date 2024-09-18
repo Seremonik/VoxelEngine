@@ -144,8 +144,13 @@ namespace VoxelEngine
 
         public void AddVoxel(int3 voxelPosition, byte voxelId)
         {
+            int modX = (voxelPosition.x % 62 + 62) % 62;
+            int modY = (voxelPosition.y % 62 + 62) % 62;
+            int modZ = (voxelPosition.z % 62 + 62) % 62;
+            
             if (ChangeVoxel(voxelPosition, voxelId, out ChunkData chunk))
             {
+                lightFloodFillSystem.AddVoxel(chunk, new int3(modX, modY, modZ));
                 RefreshChunk(chunk.ChunkPosition, true);
             }
         }
