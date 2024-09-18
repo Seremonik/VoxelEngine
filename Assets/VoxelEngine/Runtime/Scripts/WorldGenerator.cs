@@ -8,6 +8,8 @@ namespace VoxelEngine
 {
     public class WorldGenerator : MonoBehaviour
     {
+        public event Action ChunkUpdated = delegate {  };
+
         [SerializeField]
         private ChunkGameObject chunkPrefab;
 
@@ -115,40 +117,42 @@ namespace VoxelEngine
 
         public void RemoveVoxel(int3 voxelPosition)
         {
-            if (ChangeVoxel(voxelPosition, 0, out int3 chunk))
-            {
-                RefreshChunk(chunk, false);
-            }
-            
             int modX = (voxelPosition.x % 62 + 62) % 62;
             int modY = (voxelPosition.y % 62 + 62) % 62;
             int modZ = (voxelPosition.z % 62 + 62) % 62;
 
+            if (ChangeVoxel(voxelPosition, 0, out ChunkData chunk))
+            {
+                lightFloodFillSystem.RemoveVoxel(chunk, new int3(modX, modY, modZ));
+                RefreshChunk(chunk.ChunkPosition, false);
+            }
+
+            //Refresh neighboring chunks as well
             if (modX == 0)
-                RefreshChunk(chunk + new int3(-1, 0, 0), false);
+                RefreshChunk(chunk.ChunkPosition + new int3(-1, 0, 0), false);
             if (modX == 61)
-                RefreshChunk(chunk + new int3(1, 0, 0), false);
+                RefreshChunk(chunk.ChunkPosition + new int3(1, 0, 0), false);
             if (modY == 0)
-                RefreshChunk(chunk + new int3(0, -1, 0), false);
+                RefreshChunk(chunk.ChunkPosition + new int3(0, -1, 0), false);
             if (modY == 61)
-                RefreshChunk(chunk + new int3(0, 1, 0), false);
+                RefreshChunk(chunk.ChunkPosition + new int3(0, 1, 0), false);
             if (modZ == 0)
-                RefreshChunk(chunk + new int3(0, 0, -1), false);
+                RefreshChunk(chunk.ChunkPosition + new int3(0, 0, -1), false);
             if (modZ == 61)
-                RefreshChunk(chunk + new int3(0, 0, 1), false);
+                RefreshChunk(chunk.ChunkPosition + new int3(0, 0, 1), false);
         }
 
         public void AddVoxel(int3 voxelPosition, byte voxelId)
         {
-            if (ChangeVoxel(voxelPosition, voxelId, out int3 chunk))
+            if (ChangeVoxel(voxelPosition, voxelId, out ChunkData chunk))
             {
-                RefreshChunk(chunk, true);
+                RefreshChunk(chunk.ChunkPosition, true);
             }
         }
 
-        private bool ChangeVoxel(int3 position, byte newValue, out int3 chunkPosition)
+        private bool ChangeVoxel(int3 position, byte newValue, out ChunkData chunkData)
         {
-            chunkPosition = new int3(
+            var chunkPosition = new int3(
                 (int)Mathf.Floor(position.x / 62f),
                 (int)Mathf.Floor(position.y / 62f),
                 (int)Mathf.Floor(position.z / 62f));
@@ -158,6 +162,7 @@ namespace VoxelEngine
 
             if (visibleChunks.TryGetValue(chunkPosition, out var chunk))
             {
+                chunkData = chunk.ChunkData;
                 chunk.ChunkData.Voxels[
                     position.x + position.y * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
                     position.z * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED] = newValue;
@@ -195,6 +200,7 @@ namespace VoxelEngine
                 return true;
             }
 
+            chunkData = default;
             return false;
         }
 
@@ -217,6 +223,8 @@ namespace VoxelEngine
                     JobHandle.CombineDependencies(voxelBufferRecalculationHandle, bitMatrixRecalculationHandle));
             chunk.GenerationJobHandle = meshGenerationHandle;
             scheduledChunks.Add(chunk);
+            
+            ChunkUpdated?.Invoke();
         }
 
         private void GenerateChunk(int x, int z)

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
@@ -16,10 +17,16 @@ namespace VoxelEngine
         
         private void Start()
         {
+            worldGenerator.ChunkUpdated += RecalculateBoxPositions;
             for (int i = 0; i < 120; i++)
             {
                 InstantiateBoxCollider();
             }
+        }
+
+        private void OnDestroy()
+        {
+            worldGenerator.ChunkUpdated -= RecalculateBoxPositions;
         }
 
         private void FixedUpdate()
