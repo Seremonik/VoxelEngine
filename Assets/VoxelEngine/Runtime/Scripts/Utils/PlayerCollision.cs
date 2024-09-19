@@ -8,7 +8,7 @@ namespace VoxelEngine
     public class PlayerCollision : MonoBehaviour
     {
         [SerializeField]
-        private WorldGenerator worldGenerator;
+        private VoxelWorld voxelWorld;
 
         private Queue<BoxCollider> boxCollidersPool = new();
         private Dictionary<int3, BoxCollider> activeColliders = new();
@@ -17,7 +17,7 @@ namespace VoxelEngine
         
         private void Start()
         {
-            worldGenerator.ChunkUpdated += RecalculateBoxPositions;
+            voxelWorld.ChunkUpdated += RecalculateBoxPositions;
             for (int i = 0; i < 120; i++)
             {
                 InstantiateBoxCollider();
@@ -26,7 +26,7 @@ namespace VoxelEngine
 
         private void OnDestroy()
         {
-            worldGenerator.ChunkUpdated -= RecalculateBoxPositions;
+            voxelWorld.ChunkUpdated -= RecalculateBoxPositions;
         }
 
         private void FixedUpdate()
@@ -72,7 +72,7 @@ namespace VoxelEngine
                     {
                         var boxPosition = currentPosition + new int3(x, y, z);
 
-                        if (!worldGenerator.IsVoxelSolid(boxPosition)) continue;
+                        if (!voxelWorld.IsVoxelSolid(boxPosition)) continue;
                         
                         var collider = boxCollidersPool.Dequeue();
                         collider.gameObject.SetActive(true);

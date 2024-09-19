@@ -18,7 +18,7 @@ namespace VoxelEngine
         private bool hitTerrain;
 
         [SerializeField]
-        private WorldGenerator worldGenerator;
+        private VoxelWorld voxelWorld;
 
         private void Update()
         {
@@ -27,11 +27,11 @@ namespace VoxelEngine
 
             if (Input.GetMouseButtonDown(0) && HitTerrain)
             {
-                worldGenerator.AddVoxel(VoxelPosition + HitNormal, 15);
+                voxelWorld.AddVoxel(VoxelPosition + HitNormal, 15);
             }
             else if (Input.GetMouseButtonDown(1) & HitTerrain)
             {
-                worldGenerator.RemoveVoxel(VoxelPosition);
+                voxelWorld.RemoveVoxel(VoxelPosition);
             }
         }
 
@@ -85,7 +85,7 @@ namespace VoxelEngine
                     hitNormal = new int3(0, 0, -stepZ);
                 }
 
-                if (!worldGenerator.IsVoxelSolid(startingVoxel + traverse))
+                if (!voxelWorld.IsVoxelSolid(startingVoxel + traverse))
                     continue;
 
                 voxelPosition = startingVoxel + traverse;

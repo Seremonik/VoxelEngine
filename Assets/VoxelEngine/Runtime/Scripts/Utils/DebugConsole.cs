@@ -14,7 +14,7 @@ namespace VoxelEngine
         [SerializeField]
         private Transform chunkBorder;
         [SerializeField]
-        private WorldGenerator worldGenerator;
+        private VoxelWorld voxelWorld;
         [SerializeField]
         private ChunkRaycaster chunkRaycaster;
         [SerializeField]
@@ -52,7 +52,7 @@ namespace VoxelEngine
         private void UpdateCenterText()
         {
             int3 voxelPosition = chunkRaycaster.VoxelPosition;
-            var lightValue = worldGenerator.GetLightValue(voxelPosition + chunkRaycaster.HitNormal);
+            var lightValue = voxelWorld.GetLightValue(voxelPosition + chunkRaycaster.HitNormal);
             this.voxelPosition.text = $"Voxel: ({voxelPosition.x}, {voxelPosition.y},{voxelPosition.z})";
             this.voxelPosition.text += $"\nLight: {lightValue}";
         }

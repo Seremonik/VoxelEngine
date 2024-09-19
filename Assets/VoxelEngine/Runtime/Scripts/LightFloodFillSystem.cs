@@ -11,7 +11,7 @@ namespace VoxelEngine
         [ReadOnly]
         public NativeArray<byte> Voxels;
         [ReadOnly]
-        public NativeArray<int3> NeighborOffsets;
+        public NativeArray<int3>.ReadOnly  NeighborOffsets;
         public NativeQueue<int4> LightsQueue;
         public NativeArray<byte> Lights;
 
@@ -46,7 +46,7 @@ namespace VoxelEngine
         }
 
         public static void PropagateLight(NativeQueue<int4> lightsQueue, NativeArray<byte> voxels,
-            NativeArray<byte> lights, NativeArray<int3> neighborOffsets)
+            NativeArray<byte> lights, NativeArray<int3>.ReadOnly  neighborOffsets)
         {
             while (lightsQueue.Count > 0)
             {
@@ -75,7 +75,7 @@ namespace VoxelEngine
         }
 
         public static void PropagateDarkness(NativeQueue<int4> darknessQueue, NativeQueue<int4> lightsQueue,
-            NativeArray<byte> lights, NativeArray<int3> neighborOffsets)
+            NativeArray<byte> lights, NativeArray<int3>.ReadOnly  neighborOffsets)
         {
             while (darknessQueue.Count > 0)
             {
@@ -138,25 +138,6 @@ namespace VoxelEngine
 
     public class LightFloodFillSystem
     {
-        private NativeArray<int3> neighborOffsets;
-
-        public LightFloodFillSystem()
-        {
-            // Allocate the NativeArray and set the 6 neighbor offsets
-            neighborOffsets = new NativeArray<int3>(6, Allocator.Persistent);
-            neighborOffsets[0] = new int3(1, 0, 0); // Right
-            neighborOffsets[1] = new int3(-1, 0, 0); // Left
-            neighborOffsets[2] = new int3(0, 1, 0); // Up
-            neighborOffsets[3] = new int3(0, -1, 0); // Down
-            neighborOffsets[4] = new int3(0, 0, 1); // Forward
-            neighborOffsets[5] = new int3(0, 0, -1); // Backward
-        }
-
-        ~LightFloodFillSystem()
-        {
-            neighborOffsets.Dispose();
-        }
-
         public JobHandle CalculateLight(ChunkData chunkData, JobHandle dependency)
         {
             if (!chunkData.Light.IsCreated)
@@ -170,7 +151,7 @@ namespace VoxelEngine
             var lightsQueue = new NativeQueue<int4>(Allocator.TempJob);
             var job = new SunLightFloodFillJob()
             {
-                NeighborOffsets = neighborOffsets,
+                NeighborOffsets = LookupTables.VoxelNeighborOffsets,
                 Lights = chunkData.Light,
                 Voxels = chunkData.Voxels,
                 LightsQueue = lightsQueue,
@@ -203,9 +184,9 @@ namespace VoxelEngine
                 int newLightValue = 0;
 
                 //Find neighbor with highest light value
-                for (int i = 0; i < neighborOffsets.Length && newLightValue < 14; i++)
+                for (int i = 0; i < LookupTables.VoxelNeighborOffsets.Length && newLightValue < 14; i++)
                 {
-                    int3 neighborPosition = voxelPosition + neighborOffsets[i];
+                    int3 neighborPosition = voxelPosition + LookupTables.VoxelNeighborOffsets[i];
                     int neighborValue = SunLightFloodFillJob.GetLightValue(chunkData.Light, neighborPosition);
                     newLightValue = math.max(newLightValue, neighborValue - 1);
                 }
@@ -214,7 +195,7 @@ namespace VoxelEngine
                 lightsQueue.Enqueue(new int4(voxelPosition, newLightValue));
             }
 
-            SunLightFloodFillJob.PropagateLight(lightsQueue, chunkData.Voxels, chunkData.Light, neighborOffsets);
+            SunLightFloodFillJob.PropagateLight(lightsQueue, chunkData.Voxels, chunkData.Light, LookupTables.VoxelNeighborOffsets);
             lightsQueue.Dispose();
         }
 
@@ -238,8 +219,8 @@ namespace VoxelEngine
             }
 
             SunLightFloodFillJob.PropagateDarkness(darknessQueue, lightsQueue, chunkData.Light,
-                neighborOffsets);
-            SunLightFloodFillJob.PropagateLight(lightsQueue, chunkData.Voxels, chunkData.Light, neighborOffsets);
+                LookupTables.VoxelNeighborOffsets);
+            SunLightFloodFillJob.PropagateLight(lightsQueue, chunkData.Voxels, chunkData.Light, LookupTables.VoxelNeighborOffsets);
 
             lightsQueue.Dispose();
             darknessQueue.Dispose();

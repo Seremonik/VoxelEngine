@@ -6,9 +6,11 @@ namespace VoxelEngine
 {
     public class ChunkData : IDisposable
     {
+        public ChunkState ChunkLoadedState;
         //Buffers
         public NativeArray<byte> Voxels;
         public NativeArray<byte> Light;
+        //Temp Buffers - Calculated when needed
         public NativeArray<ulong> BitMatrix;
         public NativeArray<uint> VoxelBuffer;
         public NativeList<int> Triangles;
