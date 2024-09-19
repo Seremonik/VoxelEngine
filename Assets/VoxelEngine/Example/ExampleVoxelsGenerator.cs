@@ -111,11 +111,17 @@ namespace VoxelEngine.Example
                 {
                     for (int z = 0; z < VoxelEngineConstants.CHUNK_VOXEL_SIZE; z++)
                     {
+                        // float perlinValue = PerlinNoise.Perlin3D(
+                        //     (x - 1 + (VoxelEngineConstants.CHUNK_VOXEL_SIZE - 2) * chunkOffset.x) * scale,
+                        //     (y - 1 + (VoxelEngineConstants.CHUNK_VOXEL_SIZE - 2) * chunkOffset.y) * scale,
+                        //     (z - 1 + (VoxelEngineConstants.CHUNK_VOXEL_SIZE - 2) * chunkOffset.z) * scale);
                         float perlinValue = PerlinNoise.Perlin3D(
                             (x - 1 + (VoxelEngineConstants.CHUNK_VOXEL_SIZE - 2) * chunkOffset.x) * scale,
-                            (y - 1 + (VoxelEngineConstants.CHUNK_VOXEL_SIZE - 2) * chunkOffset.y) * scale,
+                            1,
                             (z - 1 + (VoxelEngineConstants.CHUNK_VOXEL_SIZE - 2) * chunkOffset.z) * scale);
-                        byte value = perlinValue >= 0.5 ? (byte)1 : (byte)0;
+                        perlinValue = perlinValue * 40 + 10;
+                        
+                        byte value = (y - 1 + (VoxelEngineConstants.CHUNK_VOXEL_SIZE - 2) * chunkOffset.y) > perlinValue ? (byte)0 : (byte)1;
                         // value = 1;
                         //
                         // if (x == 0 || y==0 || z == 0)

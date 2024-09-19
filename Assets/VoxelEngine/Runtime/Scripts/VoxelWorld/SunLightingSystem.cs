@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
@@ -136,9 +137,9 @@ namespace VoxelEngine
         }
     }
 
-    public class LightFloodFillSystem
+    public class SunLightingSystem
     {
-        public JobHandle CalculateLight(ChunkData chunkData, JobHandle dependency)
+        public JobHandle CalculateLocalSunLight(ChunkData chunkData, JobHandle dependency)
         {
             if (!chunkData.Light.IsCreated)
             {
@@ -161,6 +162,12 @@ namespace VoxelEngine
             lightsQueue.Dispose(handle);
             return handle;
         }
+
+        public JobHandle CalculateNeighboringLight(ChunkData chunkData, List<ChunkData> neighboringChunks, JobHandle dependency)
+        {
+            return default;
+        }
+        
 
         public void RemoveVoxel(ChunkData chunkData, int3 voxelPosition)
         {

@@ -12,8 +12,7 @@ namespace VoxelEngine
         private MeshFilter meshFilter;
         [SerializeField]
         private MeshRenderer meshRenderer;
-
-        public JobHandle GenerationJobHandle;
+        
         public ChunkData ChunkData { private set; get; }
         private Mesh mesh;
         private Mesh collisionMesh;

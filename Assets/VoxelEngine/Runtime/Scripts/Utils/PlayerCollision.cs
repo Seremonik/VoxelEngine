@@ -17,10 +17,11 @@ namespace VoxelEngine
         
         private void Start()
         {
+            var parent = new GameObject("Player Collision Boxes").transform;
             voxelWorld.ChunkUpdated += RecalculateBoxPositions;
             for (int i = 0; i < 120; i++)
             {
-                InstantiateBoxCollider();
+                InstantiateBoxCollider(parent);
             }
         }
 
@@ -31,8 +32,10 @@ namespace VoxelEngine
 
         private void FixedUpdate()
         {
+            UpdatePlayerChunk(new float3(transform.position.x, transform.position.y, transform.position.z));
             int3 newPosition = new int3((int)math.floor(transform.position.x), (int)math.floor(transform.position.y),
                 (int)math.floor(transform.position.z));
+            UpdatePlayerChunk(newPosition);
             if (newPosition.Equals(currentPosition))
                 return;
             if (newPosition.Equals(lastPosition))
@@ -47,7 +50,23 @@ namespace VoxelEngine
             RecalculateBoxPositions();
         }
 
-        private void InstantiateBoxCollider()
+        int3 chunk = 0;
+        private void UpdatePlayerChunk(float3 playerPosition)
+        {
+            //playerPosition = playerPosition * 1.016f - 0.5f;
+            var chunkPosition = new int3(
+                (int)Mathf.Floor(playerPosition.x / 62f),
+                (int)Mathf.Floor(playerPosition.y / 62f),
+                (int)Mathf.Floor(playerPosition.z / 62f));
+
+            if (!chunk.Equals(chunkPosition))
+            {
+                chunk = chunkPosition;
+                voxelWorld.SetPlayerChunk(chunkPosition);
+            }
+        }
+        
+        private void InstantiateBoxCollider(Transform parent)
         {
             var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
             cube.name = "PlayerChunkCollider";
@@ -55,6 +74,7 @@ namespace VoxelEngine
             Destroy(cube.GetComponent<MeshFilter>());
             Destroy(cube.GetComponent<MeshRenderer>());
             cube.SetActive(false);
+            cube.transform.SetParent(parent);
         }
 
         private void RecalculateBoxPositions()

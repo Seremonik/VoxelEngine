@@ -3,7 +3,9 @@ namespace VoxelEngine
     public enum ChunkState
     {
         UnInitialized = 0,
-        LocalLightCalculated = 1,
-        LightFullyCalculated = 2
+        Skipped = 1, //No need to load a Chunk
+        LocalLightCalculated = 2,
+        LightFullyCalculated = 3
     }
+    
 }
