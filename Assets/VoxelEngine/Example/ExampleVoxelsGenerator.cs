@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
@@ -92,18 +94,21 @@ namespace VoxelEngine.Example
     {
         public int3 ChunkOffset;
         public NativeArray<byte> Voxels;
+        public NativeArray<bool> Result; //[0] - IsEmpty //[1] IsSolid
 
         public ProfilerMarker VoxelGenerationMarker;
 
         public void Execute()
         {
-            GenerateVoxels(Voxels, ChunkOffset, 0.06f, VoxelGenerationMarker);
+            GenerateVoxels(Voxels, ChunkOffset, 0.06f, Result, VoxelGenerationMarker);
         }
 
-        public static void GenerateVoxels(NativeArray<byte> voxels, int3 chunkOffset, float scale,
+        public static void GenerateVoxels(NativeArray<byte> voxels, int3 chunkOffset, float scale, NativeArray<bool> result,
             ProfilerMarker voxelGenerationMarker)
         {
             voxelGenerationMarker.Begin();
+            bool isEmpty = true;
+            bool isSolid = true;
 
             for (int x = 0; x < VoxelEngineConstants.CHUNK_VOXEL_SIZE; x++)
             {
@@ -138,6 +143,9 @@ namespace VoxelEngine.Example
                         //     value = (byte)(15);
                         // }
 
+                        isSolid &= value != 0;
+                        isEmpty &= value == 0;
+                        
                         voxels[
                             x + (y * VoxelEngineConstants.CHUNK_VOXEL_SIZE) +
                             (z * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED)] = value;
@@ -145,6 +153,8 @@ namespace VoxelEngine.Example
                 }
             }
 
+            result[0] = isEmpty;
+            result[1] = isSolid;
             voxelGenerationMarker.End();
         }
     }
@@ -152,6 +162,21 @@ namespace VoxelEngine.Example
     [CreateAssetMenu(fileName = "Voxel Generator", menuName = "ScriptableObjects/VoxelGenerator", order = 1)]
     public class ExampleVoxelsGenerator : ScriptableObject, IVoxelsGenerator
     {
+        private JobScheduler jobScheduler;
+        
+        public void Initialize(JobScheduler jobScheduler)
+        {
+            this.jobScheduler = jobScheduler;
+        }
+        
+        public Task GenerateVoxels(ChunkData chunkData)
+        {
+            var jobHandle = ScheduleVoxelsGeneration(chunkData);
+            var tcs = new TaskCompletionSource<bool>();
+            jobScheduler.ScheduleJob(jobHandle, tcs);
+            return tcs.Task;
+        }
+        
         public JobHandle ScheduleBitMatrixRecalculation(ChunkData chunkData, JobHandle dependency)
         {
             chunkData.BitMatrix =
@@ -186,27 +211,19 @@ namespace VoxelEngine.Example
             return handle;
         }
 
-        public JobHandle ScheduleChunkGeneration(ChunkData chunkData)
+        public JobHandle ScheduleVoxelsGeneration(ChunkData chunkData)
         {
-            chunkData.Voxels =
-                new NativeArray<byte>(
-                    VoxelEngineConstants.CHUNK_VOXEL_SIZE * VoxelEngineConstants.CHUNK_VOXEL_SIZE *
-                    VoxelEngineConstants.CHUNK_VOXEL_SIZE, Allocator.Persistent);
-            chunkData.Vertices = new NativeList<uint>(Allocator.Persistent);
-            chunkData.Triangles = new NativeList<int>(Allocator.Persistent);
-
+            chunkData.Vertices.Clear();
+            chunkData.Triangles.Clear();
+            
             var voxelGenerationJob = new VoxelGenerationJob()
             {
                 VoxelGenerationMarker = new ProfilerMarker("Voxel Generation creation"),
                 Voxels = chunkData.Voxels,
                 ChunkOffset = chunkData.ChunkPosition,
+                Result = chunkData.Flags
             };
-
-            var voxelGenerationHandle = voxelGenerationJob.Schedule();
-            var voxelBufferGenerationHandle = ScheduleVoxelBufferRecalculation(chunkData, voxelGenerationHandle);
-            var bitMatrixGenerationHandle = ScheduleBitMatrixRecalculation(chunkData, voxelGenerationHandle);
-
-            return JobHandle.CombineDependencies(bitMatrixGenerationHandle, voxelBufferGenerationHandle);
+            return voxelGenerationJob.Schedule();
         }
     }
 }

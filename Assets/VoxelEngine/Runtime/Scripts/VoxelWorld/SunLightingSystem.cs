@@ -35,7 +35,7 @@ namespace VoxelEngine
                     if (currentVoxelValue != 0)
                         continue;
 
-                    while (currentVoxelValue == 0)
+                    while (currentVoxelValue == 0 && currentY>=1)
                     {
                         LightsQueue.Enqueue(new int4(x, currentY, z, 15));
                         SetLight(Lights, new int4(x, currentY, z, 15));
@@ -141,14 +141,6 @@ namespace VoxelEngine
     {
         public JobHandle CalculateLocalSunLight(ChunkData chunkData, JobHandle dependency)
         {
-            if (!chunkData.Light.IsCreated)
-            {
-                chunkData.Light =
-                    new NativeArray<byte>(
-                        VoxelEngineConstants.CHUNK_VOXEL_SIZE * VoxelEngineConstants.CHUNK_VOXEL_SIZE *
-                        VoxelEngineConstants.CHUNK_VOXEL_SIZE, Allocator.Persistent);
-            }
-
             var lightsQueue = new NativeQueue<int4>(Allocator.TempJob);
             var job = new SunLightFloodFillJob()
             {
@@ -179,7 +171,7 @@ namespace VoxelEngine
             if (SunLightFloodFillJob.GetLightValue(chunkData.Light, voxelAbove) == 15)
             {
                 while (SunLightFloodFillJob.GetVoxel(chunkData.Voxels, voxelPosition.x, voxelPosition.y,
-                           voxelPosition.z) == 0)
+                           voxelPosition.z) == 0 && voxelPosition.y>=1)
                 {
                     SunLightFloodFillJob.SetLight(chunkData.Light, new int4(voxelPosition, 15));
                     lightsQueue.Enqueue(new int4(voxelPosition, 15));

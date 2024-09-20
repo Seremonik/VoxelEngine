@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
@@ -12,27 +13,31 @@ namespace VoxelEngine
 
         [SerializeField]
         private EngineSettings engineSettings;
-        [SerializeField]
-        private InterfaceReference<IVoxelsGenerator> voxelsGenerator;
-        [SerializeField]
-        private InterfaceReference<IMeshGenerator> meshGenerator;
 
         private List<ChunkData> scheduledChunks = new();
         private Queue<ChunkGameObject> pooledChunks = new();
         private Queue<int3> scheduledChunksCreation = new();
         public readonly Dictionary<int3, ChunkGameObject> VisibleChunks = new();
-        
+
         private bool isInitialized;
 
+        private IMeshGenerator meshGenerator;
+        private IVoxelsGenerator voxelsGenerator;
+        private VoxelWorldSerializer voxelWorldSerializer;
         private VoxelWorldData voxelWorldData;
         private Transform chunkParent;
-        
-        public void Initialize(VoxelWorldData voxelWorldData)
+        private JobScheduler jobScheduler;
+
+        public void Initialize(VoxelWorldData voxelWorldData, VoxelWorldSerializer voxelWorldSerializer,
+            IMeshGenerator meshGenerator, IVoxelsGenerator voxelsGenerator)
         {
             if (isInitialized)
                 return;
 
             chunkParent = new GameObject("Chunks").transform;
+            this.meshGenerator = meshGenerator;
+            this.voxelsGenerator = voxelsGenerator;
+            this.voxelWorldSerializer = voxelWorldSerializer;
             this.voxelWorldData = voxelWorldData;
             voxelWorldData.PlayerChunkUpdated += OnPlayerChunkUpdated;
             CreateNewChunkGameObjects();
@@ -60,19 +65,27 @@ namespace VoxelEngine
                 var chunk = scheduledChunks[i];
                 chunk.GenerationJobHandle.Complete();
 
+                //Move to some function
                 if (!VisibleChunks.TryGetValue(chunk.ChunkPosition, out var chunkGameObject))
                 {
+                    if (pooledChunks.Count <= 0)
+                    {
+                        CreateNewChunkGameObjects();
+                    }
+
                     chunkGameObject = pooledChunks.Dequeue();
                     chunkGameObject.transform.position = new Vector3(
                         chunk.ChunkPosition.x * (VoxelEngineConstants.CHUNK_VOXEL_SIZE - 2),
                         chunk.ChunkPosition.y * (VoxelEngineConstants.CHUNK_VOXEL_SIZE - 2),
                         chunk.ChunkPosition.z * (VoxelEngineConstants.CHUNK_VOXEL_SIZE - 2));
-                    chunkGameObject.gameObject.name = $"Chunk({chunk.ChunkPosition.x}, {chunk.ChunkPosition.y},{chunk.ChunkPosition.z})";
+                    chunkGameObject.gameObject.name =
+                        $"Chunk({chunk.ChunkPosition.x}, {chunk.ChunkPosition.y},{chunk.ChunkPosition.z})";
                     chunkGameObject.SetChunkData(chunk);
                 }
-                
+
                 chunkGameObject.UpdateMesh();
-                
+                chunk.ChunkLoadedState = ChunkState.FullyRendered;
+
                 scheduledChunks.RemoveAt(i);
                 VisibleChunks.TryAdd(chunk.ChunkPosition, chunkGameObject);
             }
@@ -86,35 +99,57 @@ namespace VoxelEngine
                 {
                     for (int z = -1; z <= 1; z++)
                     {
-                        scheduledChunksCreation.Enqueue( voxelWorldData.PlayerChunk + new int3(x, y, z));
+                        scheduledChunksCreation.Enqueue(voxelWorldData.PlayerChunk + new int3(x, y, z));
                     }
                 }
             }
         }
 
-        private void LoadChunk(int3 chunkPosition)
+        private async Task GenerateChunkV2(int3 chunkPosition)
         {
-            
+            ChunkData newChunkData = default;
+            if (voxelWorldSerializer.IsChunkSerialized(chunkPosition))
+            {
+                //TBD
+            }
+            else
+            {
+                newChunkData = new ChunkData(chunkPosition);
+            }
+
+            await voxelsGenerator.GenerateVoxels(newChunkData);
+            //continue here
         }
 
         private void GenerateChunk(int3 chunkPosition)
         {
-            if (pooledChunks.Count <= 0)
+            ChunkData chunkData = default;
+            if (voxelWorldSerializer.IsChunkSerialized(chunkPosition))
             {
-                CreateNewChunkGameObjects();
+                //TBD
+            }
+            else
+            {
+                chunkData = new ChunkData(chunkPosition);
             }
 
-            ChunkData newChunkData = new ChunkData(chunkPosition);
-            voxelWorldData.LoadedChunks.TryAdd(chunkPosition, newChunkData);
+            voxelWorldData.LoadedChunks.TryAdd(chunkPosition, chunkData);
 
-            var voxelGenerationHandle = voxelsGenerator.Value.ScheduleChunkGeneration(newChunkData);
-            var lightFloodHandle = voxelWorldData.LightingSystem.CalculateLocalSunLight(newChunkData, voxelGenerationHandle);
-            
-            var meshGenerationHandle =
-                meshGenerator.Value.ScheduleMeshGeneration(newChunkData, lightFloodHandle);
+            var voxelGenerationHandle = voxelsGenerator.ScheduleVoxelsGeneration(chunkData);
+            var voxelBufferGenerationHandle =
+                voxelsGenerator.ScheduleVoxelBufferRecalculation(chunkData, voxelGenerationHandle);
+            var bitMatrixGenerationHandle =
+                voxelsGenerator.ScheduleBitMatrixRecalculation(chunkData, voxelGenerationHandle);
+            var lightFloodHandle =
+                voxelWorldData.LightingSystem.CalculateLocalSunLight(chunkData, voxelGenerationHandle);
 
-            newChunkData.GenerationJobHandle = meshGenerationHandle;
-            scheduledChunks.Add(newChunkData);
+            var combinedJobHandle = JobHandle.CombineDependencies(bitMatrixGenerationHandle,
+                voxelBufferGenerationHandle, lightFloodHandle);
+
+            var meshGenerationHandle = meshGenerator.ScheduleMeshGeneration(chunkData, combinedJobHandle);
+
+            chunkData.GenerationJobHandle = meshGenerationHandle;
+            scheduledChunks.Add(chunkData);
         }
 
         public void RefreshChunk(int3 chunkPosition, bool isAddition)
@@ -126,13 +161,13 @@ namespace VoxelEngine
             if (isAddition)
             {
                 voxelBufferRecalculationHandle =
-                    voxelsGenerator.Value.ScheduleVoxelBufferRecalculation(chunk, new JobHandle());
+                    voxelsGenerator.ScheduleVoxelBufferRecalculation(chunk, new JobHandle());
             }
 
             var bitMatrixRecalculationHandle =
-                voxelsGenerator.Value.ScheduleBitMatrixRecalculation(chunk, new JobHandle());
+                voxelsGenerator.ScheduleBitMatrixRecalculation(chunk, new JobHandle());
             var meshGenerationHandle =
-                meshGenerator.Value.ScheduleMeshGeneration(chunk,
+                meshGenerator.ScheduleMeshGeneration(chunk,
                     JobHandle.CombineDependencies(voxelBufferRecalculationHandle, bitMatrixRecalculationHandle));
             chunk.GenerationJobHandle = meshGenerationHandle;
             scheduledChunks.Add(chunk);
@@ -150,10 +185,11 @@ namespace VoxelEngine
                 {
                     chunk.transform.SetParent(chunkParent);
                 }
+
                 pooledChunks.Enqueue(chunk);
             }
         }
-        
+
         private void OnPlayerChunkUpdated(int3 newChunkPosition)
         {
             if (voxelWorldData.LoadedChunks.Count == 0)

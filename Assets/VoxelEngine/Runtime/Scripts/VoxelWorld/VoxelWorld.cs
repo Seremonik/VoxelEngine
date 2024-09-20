@@ -7,35 +7,53 @@ namespace VoxelEngine
 {
     public class VoxelWorld : MonoBehaviour
     {
-        public event Action ChunkUpdated = delegate {  };
-        
+        public event Action ChunkUpdated = delegate { };
+
+        [SerializeField]
+        private InterfaceReference<IVoxelsGenerator> voxelsGenerator;
+        [SerializeField]
+        private InterfaceReference<IMeshGenerator> meshGenerator;
         [SerializeField]
         private VoxelWorldGenerator voxelWorldGenerator;
+
+        private VoxelWorldSerializer voxelWorldGSerializer;
+        private JobScheduler jobScheduler;
         private VoxelWorldData VoxelWorldData { get; set; }
 
         private void Start()
         {
+            jobScheduler = new JobScheduler();
             VoxelWorldData = new VoxelWorldData();
-            voxelWorldGenerator.Initialize(VoxelWorldData);
-            //voxelWorldGenerator.GenerateWorld();
+            voxelWorldGSerializer = new VoxelWorldSerializer();
+            voxelsGenerator.Value.Initialize(jobScheduler);
+            voxelWorldGenerator.Initialize(
+                VoxelWorldData,
+                voxelWorldGSerializer,
+                meshGenerator.Value,
+                voxelsGenerator.Value);
+        }
+
+        private void LateUpdate()
+        {
+            jobScheduler.LateUpdate();
         }
 
         public void SetPlayerChunk(int3 playerChunk)
         {
             VoxelWorldData.PlayerChunk = playerChunk;
         }
-        
+
         public byte GetLightValue(int3 voxelPosition)
         {
             var chunkPosition = new int3(
                 (int)Mathf.Floor(voxelPosition.x / 62f),
                 (int)Mathf.Floor(voxelPosition.y / 62f),
                 (int)Mathf.Floor(voxelPosition.z / 62f));
-            
+
             int modX = (voxelPosition.x % 62 + 62) % 62;
             int modY = (voxelPosition.y % 62 + 62) % 62;
             int modZ = (voxelPosition.z % 62 + 62) % 62;
-            
+
             if (VoxelWorldData.LoadedChunks.TryGetValue(chunkPosition, out var chunk))
             {
                 return chunk.Light[
@@ -45,7 +63,7 @@ namespace VoxelEngine
 
             return 0;
         }
-        
+
         public bool IsVoxelSolid(int3 voxelPosition)
         {
             var chunkPosition = new int3(
@@ -56,9 +74,12 @@ namespace VoxelEngine
             int modX = (voxelPosition.x % 62 + 62) % 62;
             int modY = (voxelPosition.y % 62 + 62) % 62;
             int modZ = (voxelPosition.z % 62 + 62) % 62;
-            
+
             if (VoxelWorldData.LoadedChunks.TryGetValue(chunkPosition, out var chunk))
             {
+                if (chunk.ChunkLoadedState == ChunkState.UnInitialized)
+                    return false;
+
                 return chunk.Voxels[
                     (modX + 1) + (modY + 1) * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
                     (modZ + 1) * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED] != 0;
@@ -92,7 +113,7 @@ namespace VoxelEngine
                 voxelWorldGenerator.RefreshChunk(chunk.ChunkPosition + new int3(0, 0, -1), false);
             if (modZ == 61)
                 voxelWorldGenerator.RefreshChunk(chunk.ChunkPosition + new int3(0, 0, 1), false);
-            
+
             ChunkUpdated?.Invoke();
         }
 
@@ -101,12 +122,13 @@ namespace VoxelEngine
             int modX = (voxelPosition.x % 62 + 62) % 62;
             int modY = (voxelPosition.y % 62 + 62) % 62;
             int modZ = (voxelPosition.z % 62 + 62) % 62;
-            
+
             if (ChangeVoxel(voxelPosition, voxelId, out ChunkData chunk))
             {
                 VoxelWorldData.LightingSystem.AddVoxel(chunk, new int3(modX, modY, modZ));
                 voxelWorldGenerator.RefreshChunk(chunk.ChunkPosition, true);
             }
+
             ChunkUpdated?.Invoke();
         }
 
@@ -127,32 +149,38 @@ namespace VoxelEngine
                     position.z * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED] = newValue;
 
                 //Make sure we update neighbor chunks if voxel lays on border
-                if (position.x == 1 && VoxelWorldData.LoadedChunks.TryGetValue(chunkPosition + new int3(-1, 0, 0), out chunkData))
+                if (position.x == 1 &&
+                    VoxelWorldData.LoadedChunks.TryGetValue(chunkPosition + new int3(-1, 0, 0), out chunkData))
                     chunkData.Voxels[
                         63 + position.y * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
                         position.z * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED] = newValue;
 
-                if (position.x == 62 && VoxelWorldData.LoadedChunks.TryGetValue(chunkPosition + new int3(1, 0, 0), out chunkData))
+                if (position.x == 62 &&
+                    VoxelWorldData.LoadedChunks.TryGetValue(chunkPosition + new int3(1, 0, 0), out chunkData))
                     chunkData.Voxels[
                         0 + position.y * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
                         position.z * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED] = newValue;
 
-                if (position.y == 1 && VoxelWorldData.LoadedChunks.TryGetValue(chunkPosition + new int3(0, -1, 0), out chunkData))
+                if (position.y == 1 &&
+                    VoxelWorldData.LoadedChunks.TryGetValue(chunkPosition + new int3(0, -1, 0), out chunkData))
                     chunkData.Voxels[
                         position.x + 63 * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
                         position.z * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED] = newValue;
 
-                if (position.y == 62 && VoxelWorldData.LoadedChunks.TryGetValue(chunkPosition + new int3(0, 1, 0), out chunkData))
+                if (position.y == 62 &&
+                    VoxelWorldData.LoadedChunks.TryGetValue(chunkPosition + new int3(0, 1, 0), out chunkData))
                     chunkData.Voxels[
                         position.x +
                         position.z * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED] = newValue;
 
-                if (position.z == 1 && VoxelWorldData.LoadedChunks.TryGetValue(chunkPosition + new int3(0, 0, -1), out chunkData))
+                if (position.z == 1 &&
+                    VoxelWorldData.LoadedChunks.TryGetValue(chunkPosition + new int3(0, 0, -1), out chunkData))
                     chunkData.Voxels[
                         position.x + position.y * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
                         63 * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED] = newValue;
 
-                if (position.z == 62 && VoxelWorldData.LoadedChunks.TryGetValue(chunkPosition + new int3(0, 0, 1), out chunkData))
+                if (position.z == 62 &&
+                    VoxelWorldData.LoadedChunks.TryGetValue(chunkPosition + new int3(0, 0, 1), out chunkData))
                     chunkData.Voxels[
                         position.x + position.y * VoxelEngineConstants.CHUNK_VOXEL_SIZE] = newValue;
 
@@ -162,6 +190,5 @@ namespace VoxelEngine
             chunkData = default;
             return false;
         }
-        
     }
 }
