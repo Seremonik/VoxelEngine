@@ -139,7 +139,7 @@ namespace VoxelEngine
 
     public class SunLightingSystem
     {
-        public JobHandle CalculateLocalSunLight(ChunkData chunkData, JobHandle dependency)
+        public JobHandle CalculateLocalSunLight(ChunkData chunkData, JobHandle dependency = default)
         {
             var lightsQueue = new NativeQueue<int4>(Allocator.TempJob);
             var job = new SunLightFloodFillJob()
@@ -155,11 +155,10 @@ namespace VoxelEngine
             return handle;
         }
 
-        public JobHandle CalculateNeighboringLight(ChunkData chunkData, List<ChunkData> neighboringChunks, JobHandle dependency)
+        public JobHandle CalculateNeighboringLight(ChunkData chunkData, List<ChunkData> neighboringChunks, JobHandle dependency = default)
         {
             return default;
         }
-        
 
         public void RemoveVoxel(ChunkData chunkData, int3 voxelPosition)
         {

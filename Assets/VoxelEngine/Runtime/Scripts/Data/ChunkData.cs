@@ -10,7 +10,6 @@ namespace VoxelEngine
     {
         public ChunkState ChunkLoadedState;
         public int3 ChunkPosition;
-        public JobHandle GenerationJobHandle;
 
         //Buffers
         public NativeArray<bool> Flags;

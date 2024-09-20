@@ -18,19 +18,20 @@ namespace VoxelEngine
 
         private VoxelWorldSerializer voxelWorldGSerializer;
         private JobScheduler jobScheduler;
-        private VoxelWorldData VoxelWorldData { get; set; }
+        private VoxelWorldData voxelWorldData;
 
         private void Start()
         {
             jobScheduler = new JobScheduler();
-            VoxelWorldData = new VoxelWorldData();
+            voxelWorldData = new VoxelWorldData();
             voxelWorldGSerializer = new VoxelWorldSerializer();
             voxelsGenerator.Value.Initialize(jobScheduler);
             voxelWorldGenerator.Initialize(
-                VoxelWorldData,
+                voxelWorldData,
                 voxelWorldGSerializer,
                 meshGenerator.Value,
-                voxelsGenerator.Value);
+                voxelsGenerator.Value,
+                jobScheduler);
         }
 
         private void LateUpdate()
@@ -40,7 +41,7 @@ namespace VoxelEngine
 
         public void SetPlayerChunk(int3 playerChunk)
         {
-            VoxelWorldData.PlayerChunk = playerChunk;
+            voxelWorldData.PlayerChunk = playerChunk;
         }
 
         public byte GetLightValue(int3 voxelPosition)
@@ -54,7 +55,7 @@ namespace VoxelEngine
             int modY = (voxelPosition.y % 62 + 62) % 62;
             int modZ = (voxelPosition.z % 62 + 62) % 62;
 
-            if (VoxelWorldData.LoadedChunks.TryGetValue(chunkPosition, out var chunk))
+            if (voxelWorldData.LoadedChunks.TryGetValue(chunkPosition, out var chunk))
             {
                 return chunk.Light[
                     (modX + 1) + (modY + 1) * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
@@ -75,9 +76,9 @@ namespace VoxelEngine
             int modY = (voxelPosition.y % 62 + 62) % 62;
             int modZ = (voxelPosition.z % 62 + 62) % 62;
 
-            if (VoxelWorldData.LoadedChunks.TryGetValue(chunkPosition, out var chunk))
+            if (voxelWorldData.LoadedChunks.TryGetValue(chunkPosition, out var chunk))
             {
-                if (chunk.ChunkLoadedState == ChunkState.UnInitialized)
+                if (chunk.ChunkLoadedState is ChunkState.UnInitialized or ChunkState.Skipped)
                     return false;
 
                 return chunk.Voxels[
@@ -96,7 +97,7 @@ namespace VoxelEngine
 
             if (ChangeVoxel(voxelPosition, 0, out ChunkData chunk))
             {
-                VoxelWorldData.LightingSystem.RemoveVoxel(chunk, new int3(modX, modY, modZ));
+                voxelWorldData.LightingSystem.RemoveVoxel(chunk, new int3(modX, modY, modZ));
                 voxelWorldGenerator.RefreshChunk(chunk.ChunkPosition, false);
             }
 
@@ -125,7 +126,7 @@ namespace VoxelEngine
 
             if (ChangeVoxel(voxelPosition, voxelId, out ChunkData chunk))
             {
-                VoxelWorldData.LightingSystem.AddVoxel(chunk, new int3(modX, modY, modZ));
+                voxelWorldData.LightingSystem.AddVoxel(chunk, new int3(modX, modY, modZ));
                 voxelWorldGenerator.RefreshChunk(chunk.ChunkPosition, true);
             }
 
@@ -142,7 +143,7 @@ namespace VoxelEngine
 
             position += 1; //Offset by one as we have padding of 1. Instead of 64 we render 62
 
-            if (VoxelWorldData.LoadedChunks.TryGetValue(chunkPosition, out chunkData))
+            if (voxelWorldData.LoadedChunks.TryGetValue(chunkPosition, out chunkData))
             {
                 chunkData.Voxels[
                     position.x + position.y * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
@@ -150,37 +151,37 @@ namespace VoxelEngine
 
                 //Make sure we update neighbor chunks if voxel lays on border
                 if (position.x == 1 &&
-                    VoxelWorldData.LoadedChunks.TryGetValue(chunkPosition + new int3(-1, 0, 0), out chunkData))
+                    voxelWorldData.LoadedChunks.TryGetValue(chunkPosition + new int3(-1, 0, 0), out chunkData))
                     chunkData.Voxels[
                         63 + position.y * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
                         position.z * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED] = newValue;
 
                 if (position.x == 62 &&
-                    VoxelWorldData.LoadedChunks.TryGetValue(chunkPosition + new int3(1, 0, 0), out chunkData))
+                    voxelWorldData.LoadedChunks.TryGetValue(chunkPosition + new int3(1, 0, 0), out chunkData))
                     chunkData.Voxels[
                         0 + position.y * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
                         position.z * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED] = newValue;
 
                 if (position.y == 1 &&
-                    VoxelWorldData.LoadedChunks.TryGetValue(chunkPosition + new int3(0, -1, 0), out chunkData))
+                    voxelWorldData.LoadedChunks.TryGetValue(chunkPosition + new int3(0, -1, 0), out chunkData))
                     chunkData.Voxels[
                         position.x + 63 * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
                         position.z * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED] = newValue;
 
                 if (position.y == 62 &&
-                    VoxelWorldData.LoadedChunks.TryGetValue(chunkPosition + new int3(0, 1, 0), out chunkData))
+                    voxelWorldData.LoadedChunks.TryGetValue(chunkPosition + new int3(0, 1, 0), out chunkData))
                     chunkData.Voxels[
                         position.x +
                         position.z * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED] = newValue;
 
                 if (position.z == 1 &&
-                    VoxelWorldData.LoadedChunks.TryGetValue(chunkPosition + new int3(0, 0, -1), out chunkData))
+                    voxelWorldData.LoadedChunks.TryGetValue(chunkPosition + new int3(0, 0, -1), out chunkData))
                     chunkData.Voxels[
                         position.x + position.y * VoxelEngineConstants.CHUNK_VOXEL_SIZE +
                         63 * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED] = newValue;
 
                 if (position.z == 62 &&
-                    VoxelWorldData.LoadedChunks.TryGetValue(chunkPosition + new int3(0, 0, 1), out chunkData))
+                    voxelWorldData.LoadedChunks.TryGetValue(chunkPosition + new int3(0, 0, 1), out chunkData))
                     chunkData.Voxels[
                         position.x + position.y * VoxelEngineConstants.CHUNK_VOXEL_SIZE] = newValue;
 

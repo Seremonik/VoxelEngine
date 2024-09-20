@@ -49,8 +49,6 @@ namespace VoxelEngine
             float my = Mathf.Abs(ray.direction.y == 0 ? 9000 : 1 / ray.direction.y);
             float mz = Mathf.Abs(ray.direction.z == 0 ? 9000 : 1 / ray.direction.z);
 
-            int index = 0;
-
             float currentLengthX = stepX < 0
                 ? (ray.origin.x - startingVoxel.x) * mx
                 : ((startingVoxel.x + 1) - ray.origin.x) * mx;
