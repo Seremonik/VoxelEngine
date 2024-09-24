@@ -2528,6 +2528,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3e2c046e9c8943aea2f4fdc08b06cc47, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  voxelsGenerator:
+    _objectValue: {fileID: 11400000, guid: fff83a800b1709645be050a34ff77a9c, type: 2}
+  meshGenerator:
+    _objectValue: {fileID: 11400000, guid: e397047011a027543946d5690a21fc6d, type: 2}
   voxelWorldGenerator: {fileID: 6525561966114098334}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:

@@ -111,7 +111,7 @@ namespace VoxelEngine
             
             await voxelsGenerator.GenerateVoxels(chunkData);
 
-            if (chunkData.IsSolid || chunkData.IsEmpty)
+            if (chunkData.IsEmpty) // Check also if is surrounded
             {
                 chunkData.ChunkLoadedState = ChunkState.Skipped;
                 return;
