@@ -43,6 +43,7 @@ Shader "Custom/DebugVoxelTextureAtlas"
             StructuredBuffer<int> voxelBuffer;
             
             float4 _Color;
+            float _AOStrength;
             int _ChunkSize;
             int _ChunkSizeSquared;
 
@@ -156,8 +157,8 @@ Shader "Custom/DebugVoxelTextureAtlas"
                 fixed4 tex_color = UNITY_SAMPLE_TEX2DARRAY(_TexArray, float3(uv,voxelId)) * _Color;
                 //tex_color = 1;
                 float artificialLight = (1,1,1,1);
-                float sunLight = 1 - cos((i.sunLight/15.0 * PI) / 2);
-                sunLight+=0.005f;
+                float ao = 1 - cos((i.sunLight / 15.0 * PI) / 2);
+                float sunLight = lerp(1.0, ao, _AOStrength) ;
                 const fixed3 diffuse = lightValue(i.faceIndex) * tex_color.rgb * sunLight;
 
                 return fixed4(diffuse, tex_color.a);

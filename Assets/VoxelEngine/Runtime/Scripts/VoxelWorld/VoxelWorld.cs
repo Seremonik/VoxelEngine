@@ -10,6 +10,8 @@ namespace VoxelEngine
         public event Action ChunkUpdated = delegate { };
 
         [SerializeField]
+        private EngineSettings engineSettings;
+        [SerializeField]
         private VoxelsGeneratorBase voxelsGenerator;
         [SerializeField]
         private MeshGeneratorBase meshGenerator;
@@ -22,6 +24,7 @@ namespace VoxelEngine
 
         private void Start()
         {
+            Shader.SetGlobalFloat("_AOStrength", engineSettings.AmbientOcclusionStrength);
             jobScheduler = new JobScheduler();
             voxelWorldData = new VoxelWorldData();
             voxelWorldGSerializer = new VoxelWorldSerializer();
