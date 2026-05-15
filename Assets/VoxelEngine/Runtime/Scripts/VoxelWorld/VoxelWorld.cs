@@ -10,9 +10,9 @@ namespace VoxelEngine
         public event Action ChunkUpdated = delegate { };
 
         [SerializeField]
-        private InterfaceReference<IVoxelsGenerator> voxelsGenerator;
+        private VoxelsGeneratorBase voxelsGenerator;
         [SerializeField]
-        private InterfaceReference<IMeshGenerator> meshGenerator;
+        private MeshGeneratorBase meshGenerator;
         [SerializeField]
         private VoxelWorldGenerator voxelWorldGenerator;
 
@@ -25,12 +25,12 @@ namespace VoxelEngine
             jobScheduler = new JobScheduler();
             voxelWorldData = new VoxelWorldData();
             voxelWorldGSerializer = new VoxelWorldSerializer();
-            voxelsGenerator.Value.Initialize(jobScheduler);
+            voxelsGenerator.Initialize(jobScheduler);
             voxelWorldGenerator.Initialize(
                 voxelWorldData,
                 voxelWorldGSerializer,
-                meshGenerator.Value,
-                voxelsGenerator.Value,
+                meshGenerator,
+                voxelsGenerator,
                 jobScheduler);
         }
 

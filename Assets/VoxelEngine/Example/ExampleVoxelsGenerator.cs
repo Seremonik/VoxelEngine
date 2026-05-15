@@ -94,7 +94,7 @@ namespace VoxelEngine.Example
     {
         public int3 ChunkOffset;
         public NativeArray<byte> Voxels;
-        public NativeArray<bool> Result; //[0] - IsEmpty //[1] IsSolid
+        public NativeArray<bool> Result; //[0] - IsChunkEmpty //[1] IsChunkSolid
 
         public ProfilerMarker VoxelGenerationMarker;
 
@@ -107,8 +107,8 @@ namespace VoxelEngine.Example
             ProfilerMarker voxelGenerationMarker)
         {
             voxelGenerationMarker.Begin();
-            bool isEmpty = true;
-            bool isSolid = true;
+            bool isChunkEmpty = true;
+            bool isChunkSolid = true;
 
             for (int x = 0; x < VoxelEngineConstants.CHUNK_VOXEL_SIZE; x++)
             {
@@ -116,35 +116,36 @@ namespace VoxelEngine.Example
                 {
                     for (int z = 0; z < VoxelEngineConstants.CHUNK_VOXEL_SIZE; z++)
                     {
-                        // float perlinValue = PerlinNoise.Perlin3D(
-                        //     (x - 1 + (VoxelEngineConstants.CHUNK_VOXEL_SIZE - 2) * chunkOffset.x) * scale,
-                        //     (y - 1 + (VoxelEngineConstants.CHUNK_VOXEL_SIZE - 2) * chunkOffset.y) * scale,
-                        //     (z - 1 + (VoxelEngineConstants.CHUNK_VOXEL_SIZE - 2) * chunkOffset.z) * scale);
                         float perlinValue = PerlinNoise.Perlin3D(
                             (x - 1 + (VoxelEngineConstants.CHUNK_VOXEL_SIZE - 2) * chunkOffset.x) * scale,
-                            1,
+                            (y - 1 + (VoxelEngineConstants.CHUNK_VOXEL_SIZE - 2) * chunkOffset.y) * scale,
                             (z - 1 + (VoxelEngineConstants.CHUNK_VOXEL_SIZE - 2) * chunkOffset.z) * scale);
-                        perlinValue = perlinValue * 40 + 10;
+                        // float perlinValue = PerlinNoise.Perlin3D(
+                        //     (x - 1 + (VoxelEngineConstants.CHUNK_VOXEL_SIZE - 2) * chunkOffset.x) * scale,
+                        //     1,
+                        //     (z - 1 + (VoxelEngineConstants.CHUNK_VOXEL_SIZE - 2) * chunkOffset.z) * scale);
+                        //perlinValue = perlinValue * 40 + 10;
                         
-                        byte value = (y - 1 + (VoxelEngineConstants.CHUNK_VOXEL_SIZE - 2) * chunkOffset.y) > perlinValue ? (byte)0 : (byte)1;
-                        // value = 1;
-                        //
-                        // if (x == 0 || y==0 || z == 0)
-                        // {
-                        //     value = 0;
-                        // }
-                        // if (x == VoxelEngineConstants.CHUNK_VOXEL_SIZE-1 || y==VoxelEngineConstants.CHUNK_VOXEL_SIZE-1 || z == VoxelEngineConstants.CHUNK_VOXEL_SIZE-1)
-                        // {
-                        //     value = 0;
-                        // }
-                        //
-                        // if (value > 0 && z == 1)
-                        // {
-                        //     value = (byte)(15);
-                        // }
+                        //byte value = (y - 1 + (VoxelEngineConstants.CHUNK_VOXEL_SIZE - 2) * chunkOffset.y) > perlinValue ? (byte)0 : (byte)1;
+                        byte value = 0.5f > perlinValue ? (byte)0 : (byte)1;
+                        //value = 1;
+                        
+                        if (x == 0 || y==0 || z == 0)
+                        {
+                            value = 0;
+                        }
+                        if (x == VoxelEngineConstants.CHUNK_VOXEL_SIZE-1 || y==VoxelEngineConstants.CHUNK_VOXEL_SIZE-1 || z == VoxelEngineConstants.CHUNK_VOXEL_SIZE-1)
+                        {
+                            value = 0;
+                        }
+                        
+                        if (value > 0 && z == 1)
+                        {
+                            value = (byte)(15);
+                        }
 
-                        isSolid &= value != 0;
-                        isEmpty &= value == 0;
+                        isChunkSolid &= value != 0;
+                        isChunkEmpty &= value == 0;
                         
                         voxels[
                             x + (y * VoxelEngineConstants.CHUNK_VOXEL_SIZE) +
@@ -153,23 +154,23 @@ namespace VoxelEngine.Example
                 }
             }
 
-            result[0] = isEmpty;
-            result[1] = isSolid;
+            result[0] = isChunkEmpty;
+            result[1] = isChunkSolid;
             voxelGenerationMarker.End();
         }
     }
 
     [CreateAssetMenu(fileName = "Voxel Generator", menuName = "ScriptableObjects/VoxelGenerator", order = 1)]
-    public class ExampleVoxelsGenerator : ScriptableObject, IVoxelsGenerator
+    public class ExampleVoxelsGenerator : VoxelsGeneratorBase
     {
         private JobScheduler jobScheduler;
         
-        public void Initialize(JobScheduler jobScheduler)
+        public override void Initialize(JobScheduler jobScheduler)
         {
             this.jobScheduler = jobScheduler;
         }
         
-        public Task GenerateVoxels(ChunkData chunkData)
+        public override Task GenerateVoxels(ChunkData chunkData)
         {
             var jobHandle = ScheduleVoxelsGeneration(chunkData);
             var tcs = new TaskCompletionSource<bool>();
@@ -177,7 +178,7 @@ namespace VoxelEngine.Example
             return tcs.Task;
         }
         
-        public JobHandle ScheduleBitMatrixRecalculation(ChunkData chunkData, JobHandle dependency)
+        public override JobHandle ScheduleBitMatrixRecalculation(ChunkData chunkData, JobHandle dependency)
         {
             chunkData.BitMatrix =
                 new NativeArray<ulong>(VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED * 3, Allocator.TempJob);
@@ -193,7 +194,7 @@ namespace VoxelEngine.Example
             return handle;
         }
 
-        public JobHandle ScheduleVoxelBufferRecalculation(ChunkData chunkData, JobHandle dependency)
+        public override JobHandle ScheduleVoxelBufferRecalculation(ChunkData chunkData, JobHandle dependency)
         {
             chunkData.VoxelBuffer = new NativeArray<uint>(
                 (VoxelEngineConstants.CHUNK_VOXEL_SIZE - 2) * (VoxelEngineConstants.CHUNK_VOXEL_SIZE - 2) *
@@ -211,7 +212,7 @@ namespace VoxelEngine.Example
             return handle;
         }
 
-        public JobHandle ScheduleVoxelsGeneration(ChunkData chunkData)
+        public override JobHandle ScheduleVoxelsGeneration(ChunkData chunkData)
         {
             chunkData.Vertices.Clear();
             chunkData.Triangles.Clear();

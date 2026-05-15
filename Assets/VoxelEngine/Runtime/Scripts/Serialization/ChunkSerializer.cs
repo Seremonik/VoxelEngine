@@ -4,7 +4,6 @@ namespace VoxelEngine
 {
     public class ChunkFileSerializer : IChunkSerializer
     {
-        
         public bool Serialize(ChunkData chunkData)
         {
             throw new System.NotImplementedException();

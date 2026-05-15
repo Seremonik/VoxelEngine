@@ -21,8 +21,8 @@ namespace VoxelEngine
         public NativeList<int> Triangles;
         public NativeList<uint> Vertices;
 
-        public bool IsEmpty => Flags[0];
-        public bool IsSolid => Flags[1];
+        public bool IsEmpty => Flags[0]; //Is entire chunk empty?
+        public bool IsSolid => Flags[1]; //Is entire chunk a solid block?
         
         // public bool IsDirty;
         // public bool RequiresSaving;

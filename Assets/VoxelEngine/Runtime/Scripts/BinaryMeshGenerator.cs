@@ -8,7 +8,7 @@ using UnityEngine;
 namespace VoxelEngine
 {
     [BurstCompile]
-    partial struct BinaryMeshingJob : IJob
+    struct BinaryMeshingJob : IJob
     {
         [ReadOnly]
         public NativeArray<ulong> BitMatrix;
@@ -26,20 +26,23 @@ namespace VoxelEngine
         public ProfilerMarker SideMatrixMarker;
         public ProfilerMarker TransposingMatrixMarker;
         public ProfilerMarker GreedyMeshMarker;
+        public bool EnableGreedyMeshing;
 
         public void Execute()
         {
             vertexCount = 0;
 
             GenerateCulledBitMatrix();
-            TransposeCullingMatrices();
+            if (EnableGreedyMeshing)
+                TransposeCullingMatrices();
             GreedyMeshMarker.Begin();
+            
             for (int i = 0; i < 6; i++)
             {
                 var sideSlice = new NativeSlice<ulong>(CullingBitMatrix,
                     i * VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED,
                     VoxelEngineConstants.CHUNK_VOXEL_SIZE_SQUARED);
-                vertexCount = GreedyMesh(sideSlice, (SideOrientation)i);
+                vertexCount = EnableGreedyMeshing ? GreedyMeshing(sideSlice, (SideOrientation)i) : NormalMeshing(sideSlice, (SideOrientation)i);
             }
 
             GreedyMeshMarker.End();
@@ -64,7 +67,34 @@ namespace VoxelEngine
             SideMatrixMarker.End();
         }
 
-        private int GreedyMesh(NativeSlice<ulong> cullingBitMatrixSlice, SideOrientation sideOrientation)
+        private int NormalMeshing(NativeSlice<ulong> cullingBitMatrixSlice, SideOrientation sideOrientation)
+        {
+            int axisIndex = (int)sideOrientation / 2;
+            int faceNormal = (int)sideOrientation % 2 == 0 ? 1 : -1;
+
+            for (int i = 1; i < VoxelEngineConstants.CHUNK_VOXEL_SIZE - 1; i++)
+            {
+                for (int j = 1; j < VoxelEngineConstants.CHUNK_VOXEL_SIZE - 1; j++)
+                {
+                    ulong currentRow = cullingBitMatrixSlice[i + j * VoxelEngineConstants.CHUNK_VOXEL_SIZE];
+                    if (currentRow == 0)
+                        continue;
+
+                    for (int bitIndex = 1; bitIndex < VoxelEngineConstants.CHUNK_VOXEL_SIZE - 1; bitIndex++)
+                    {
+                        if ((currentRow & (1UL << bitIndex)) == 0)
+                            continue;
+                        
+                        var ao = CalculateAO(bitIndex, j, i, axisIndex, faceNormal);
+                        DrawFace(bitIndex - 1, j - 1, i - 1, 1, 1, sideOrientation, ao);
+                    }
+                }
+            }
+
+            return vertexCount;
+        }
+        
+        private int GreedyMeshing(NativeSlice<ulong> cullingBitMatrixSlice, SideOrientation sideOrientation)
         {
             int axisIndex = (int)sideOrientation / 2;
             int faceNormal = (int)sideOrientation % 2 == 0 ? 1 : -1;
@@ -381,13 +411,15 @@ namespace VoxelEngine
 
     [CreateAssetMenu(fileName = "Binary Mesh Generator", menuName = "ScriptableObjects/Binary Mesh Generator",
         order = 1)]
-    public class BinaryMeshGenerator : ScriptableObject, IMeshGenerator
+    public class BinaryMeshGenerator : MeshGeneratorBase
     {
-        public JobHandle ScheduleMeshGeneration(ChunkData chunkData, JobHandle dependency)
+        public bool EnableGreedyMeshing;
+        public override JobHandle ScheduleMeshGeneration(ChunkData chunkData, JobHandle dependency)
         {
             chunkData.ChunkLoadedState = ChunkState.LightFullyCalculated;
             var job = new BinaryMeshingJob()
             {
+                EnableGreedyMeshing = EnableGreedyMeshing,
                 TransposeMatrixLookupTable = LookupTables.TransposeMatrixLookupTable,
                 GreedyMeshMarker = new ProfilerMarker("Greedy meshing"),
                 SideMatrixMarker = new ProfilerMarker("SideMatrix"),

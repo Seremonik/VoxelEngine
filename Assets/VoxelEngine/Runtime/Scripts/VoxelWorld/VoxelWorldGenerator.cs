@@ -58,18 +58,10 @@ namespace VoxelEngine
 
         public void GenerateInitialWorld()
         {
-            for (int x = -1; x <= 1; x++)
-            {
-                for (int y = -1; y <= 1; y++)
-                {
-                    for (int z = -1; z <= 1; z++)
-                    {
-                        scheduledChunksCreation.Enqueue(voxelWorldData.PlayerChunk + new int3(x, y, z));
-                    }
-                }
-            }
-        }
+            VoxelEngineUtils.SpiralOutward(engineSettings.WorldRadius, 0,0, (x,z) => scheduledChunksCreation.Enqueue(voxelWorldData.PlayerChunk + new int3(x, 0, z)));
 
+        }
+        
         private void GenerateChunkMesh(ChunkData chunkData)
         {
             //Move to some function
