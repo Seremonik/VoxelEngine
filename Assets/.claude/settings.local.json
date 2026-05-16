@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs grep:*)",
+      "Bash(grep:*)",
+      "Bash(mv \"Assets/VoxelEngine/Runtime\" \"Runtime\")",
+      "Bash(mv \"Assets/VoxelEngine/Runtime.meta\" \"Runtime.meta\")",
+      "Bash(mv \"Assets/VoxelEngine/Editor\" \"Editor\")",
+      "Bash(mv \"Assets/VoxelEngine/Editor.meta\" \"Editor.meta\")",
+      "Bash(mv \"Assets/VoxelEngine/Tests\" \"Tests\")",
+      "Bash(mv \"Assets/VoxelEngine/Example/.\" \"Samples~/Basic Example/\")",
+      "Bash(mv \"Assets/VoxelEngine/Example.meta\" \"Samples~/Basic Example.meta\")",
+      "Bash(cp -r \"Assets/VoxelEngine/Example/.\" \"Samples~/Basic Example/\")",
+      "Bash(rm -rf \"Assets/VoxelEngine/Example\")",
+      "Bash(mv \"Assets/Settings\" \"TestProject~/Assets/Settings\")",
+      "Bash(mv \"Assets/Settings.meta\" \"TestProject~/Assets/Settings.meta\")",
+      "Bash(mv \"Assets/TextMesh Pro\" \"TestProject~/Assets/TextMesh Pro\")",
+      "Bash(mv \"Assets/TextMesh Pro.meta\" \"TestProject~/Assets/TextMesh Pro.meta\")",
+      "Bash(mv \"Assets/DefaultVolumeProfile.asset\" \"TestProject~/Assets/\")",
+      "Bash(mv Packages \"TestProject~/Packages\")",
+      "Bash(mv ProjectSettings \"TestProject~/ProjectSettings\")",
+      "Bash(rm -rf \"Assets/VoxelEngine\")",
+      "Bash(rmdir \"Assets\")",
+      "Bash(rm \"Assets/VoxelEngine.meta\")",
+      "Bash(rm \"/d/GameDev/Respositories/VoxelEngine/Assets/VoxelEngine.meta\")",
+      "Bash(rm -rf \"/d/GameDev/Respositories/VoxelEngine/Assets\")"
+    ]
+  }
+}

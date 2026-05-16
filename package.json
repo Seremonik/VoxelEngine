@@ -1,0 +1,21 @@
+{
+  "name": "com.michalduziak.voxelengine",
+  "version": "1.0.0",
+  "displayName": "Voxel Engine",
+  "description": "A high-performance voxel world engine for Unity using ECS, Burst, and the Job System.",
+  "unity": "6000.0",
+  "author": {
+    "name": "Michal Duziak"
+  },
+  "dependencies": {
+    "com.unity.entities": "1.4.5",
+    "com.unity.render-pipelines.universal": "17.3.0"
+  },
+  "samples": [
+    {
+      "displayName": "Basic Example",
+      "description": "A basic example scene demonstrating terrain generation and character controller.",
+      "path": "Samples~/Basic Example"
+    }
+  ]
+}
