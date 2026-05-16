@@ -416,7 +416,6 @@ namespace VoxelEngine
         public bool EnableGreedyMeshing;
         public override JobHandle ScheduleMeshGeneration(ChunkData chunkData, JobHandle dependency)
         {
-            chunkData.ChunkLoadedState = ChunkState.LightFullyCalculated;
             var job = new BinaryMeshingJob()
             {
                 EnableGreedyMeshing = EnableGreedyMeshing,

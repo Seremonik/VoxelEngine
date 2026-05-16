@@ -13,7 +13,7 @@ namespace VoxelEngine
 
         [SerializeField]
         private EngineSettings engineSettings;
-        
+
         private Queue<ChunkGameObject> pooledChunks = new();
         private Queue<int3> scheduledChunksCreation = new();
         public readonly Dictionary<int3, ChunkGameObject> VisibleChunks = new();
@@ -26,6 +26,13 @@ namespace VoxelEngine
         private VoxelWorldData voxelWorldData;
         private Transform chunkParent;
         private JobScheduler jobScheduler;
+
+        private static readonly int3[] NeighborOffsets =
+        {
+            new( 1,  0,  0), new(-1,  0,  0),
+            new( 0,  1,  0), new( 0, -1,  0),
+            new( 0,  0,  1), new( 0,  0, -1),
+        };
 
         public void Initialize(VoxelWorldData voxelWorldData, VoxelWorldSerializer voxelWorldSerializer,
             IMeshGenerator meshGenerator, IVoxelsGenerator voxelsGenerator, JobScheduler jobScheduler)
@@ -58,13 +65,12 @@ namespace VoxelEngine
 
         public void GenerateInitialWorld()
         {
-            VoxelEngineUtils.SpiralOutward(engineSettings.WorldRadius, 0,0, (x,z) => scheduledChunksCreation.Enqueue(voxelWorldData.PlayerChunk + new int3(x, 0, z)));
-
+            VoxelEngineUtils.SpiralOutward(engineSettings.WorldRadius, 0, 0,
+                (x, z) => scheduledChunksCreation.Enqueue(voxelWorldData.PlayerChunk + new int3(x, 0, z)));
         }
-        
+
         private void GenerateChunkMesh(ChunkData chunkData)
         {
-            //Move to some function
             if (!VisibleChunks.TryGetValue(chunkData.ChunkPosition, out var chunkGameObject))
             {
                 if (pooledChunks.Count <= 0)
@@ -84,10 +90,20 @@ namespace VoxelEngine
 
             chunkGameObject.UpdateMesh();
             chunkData.ChunkLoadedState = ChunkState.FullyRendered;
-            
             VisibleChunks.TryAdd(chunkData.ChunkPosition, chunkGameObject);
+
+            // When this chunk is ready, its border light can now improve neighbors that
+            // were already rendered without this chunk's data available.
+            foreach (var offset in NeighborOffsets)
+            {
+                if (voxelWorldData.LoadedChunks.TryGetValue(chunkData.ChunkPosition + offset, out var neighbor) &&
+                    neighbor.ChunkLoadedState == ChunkState.FullyRendered)
+                {
+                    RefreshNeighborLight(neighbor);
+                }
+            }
         }
-        
+
         private async Task GenerateChunk(int3 chunkPosition)
         {
             ChunkData chunkData = default;
@@ -100,28 +116,41 @@ namespace VoxelEngine
                 chunkData = new ChunkData(chunkPosition);
             }
             voxelWorldData.LoadedChunks.Add(chunkPosition, chunkData);
-            
+
             await voxelsGenerator.GenerateVoxels(chunkData);
 
-            if (chunkData.IsEmpty) // Check also if is surrounded
+            if (chunkData.IsEmpty)
             {
                 chunkData.ChunkLoadedState = ChunkState.Skipped;
                 return;
             }
-            
-            var voxelBufferGenerationHandle =
-                voxelsGenerator.ScheduleVoxelBufferRecalculation(chunkData);
-            var bitMatrixGenerationHandle =
-                voxelsGenerator.ScheduleBitMatrixRecalculation(chunkData);
-            var lightFloodHandle =
-                voxelWorldData.LightingSystem.CalculateLocalSunLight(chunkData);
 
-            var combinedJobHandle = JobHandle.CombineDependencies(bitMatrixGenerationHandle,
-                voxelBufferGenerationHandle, lightFloodHandle);
+            // Phase 1: voxel buffer, bit matrix, and local sun light all run in parallel.
+            var voxelBufferHandle = voxelsGenerator.ScheduleVoxelBufferRecalculation(chunkData);
+            var bitMatrixHandle   = voxelsGenerator.ScheduleBitMatrixRecalculation(chunkData);
+            var localLightHandle  = voxelWorldData.LightingSystem.CalculateLocalSunLight(chunkData);
 
-            var meshGenerationHandle = meshGenerator.ScheduleMeshGeneration(chunkData, combinedJobHandle);
+            // Phase 2: once local light is done, seed borders from any already-lit neighbors
+            // and run the neighbor flood fill. Mesh waits for all three phase-1 handles plus
+            // the neighbor light before starting.
+            jobScheduler.ScheduleJob(localLightHandle, () =>
+            {
+                chunkData.ChunkLoadedState = ChunkState.LocalLightCalculated;
 
-            jobScheduler.ScheduleJob(meshGenerationHandle, ()=>GenerateChunkMesh(chunkData));
+                var neighborLightHandle = voxelWorldData.LightingSystem.CalculateNeighboringLight(
+                    chunkData, voxelWorldData.LoadedChunks);
+
+                // Mark fully calculated only after the neighbor flood fill job is done —
+                // this is what TryGetLitNeighbor checks before reading the Light array.
+                jobScheduler.ScheduleJob(neighborLightHandle,
+                    () => chunkData.ChunkLoadedState = ChunkState.LightFullyCalculated);
+
+                var allReady = JobHandle.CombineDependencies(
+                    JobHandle.CombineDependencies(voxelBufferHandle, bitMatrixHandle), neighborLightHandle);
+
+                var meshHandle = meshGenerator.ScheduleMeshGeneration(chunkData, allReady);
+                jobScheduler.ScheduleJob(meshHandle, () => GenerateChunkMesh(chunkData));
+            });
         }
 
         public void RefreshChunk(int3 chunkPosition, bool isAddition)
@@ -142,7 +171,28 @@ namespace VoxelEngine
                 meshGenerator.ScheduleMeshGeneration(chunkData,
                     JobHandle.CombineDependencies(voxelBufferRecalculationHandle, bitMatrixRecalculationHandle));
 
-            jobScheduler.ScheduleJob(meshGenerationHandle, ()=>GenerateChunkMesh(chunkData));
+            jobScheduler.ScheduleJob(meshGenerationHandle, () => GenerateChunkMesh(chunkData));
+        }
+
+        // Re-seeds a fully rendered neighbor's borders from current loaded chunks and re-meshes it.
+        // Called once per neighbor when a new adjacent chunk finishes rendering.
+        // Does NOT chain further — avoids cascading updates.
+        private void RefreshNeighborLight(ChunkData chunkData)
+        {
+            var neighborLightHandle = voxelWorldData.LightingSystem.CalculateNeighboringLight(
+                chunkData, voxelWorldData.LoadedChunks);
+
+            jobScheduler.ScheduleJob(neighborLightHandle,
+                () => chunkData.ChunkLoadedState = ChunkState.LightFullyCalculated);
+
+            var bitMatrixHandle = voxelsGenerator.ScheduleBitMatrixRecalculation(chunkData, neighborLightHandle);
+            var meshHandle = meshGenerator.ScheduleMeshGeneration(chunkData, bitMatrixHandle);
+            jobScheduler.ScheduleJob(meshHandle, () =>
+            {
+                if (VisibleChunks.TryGetValue(chunkData.ChunkPosition, out var go))
+                    go.UpdateMesh();
+                chunkData.ChunkLoadedState = ChunkState.FullyRendered;
+            });
         }
 
         private void CreateNewChunkGameObjects()
