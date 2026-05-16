@@ -23,21 +23,23 @@ Binary face culling · Greedy meshing · Ambient occlusion · Flood-fill sun lig
 ## Features
 
 - **Binary face culling** uses 64-bit bitmask operations to reduce visible face detection to a handful of bitwise instructions per slice
-- **Greedy meshing** merges adjacent coplanar faces into the largest possible quads, drastically cutting vertex and triangle counts
+- **Greedy meshing** merges adjacent coplanar faces into the largest possible quads, reducing triangle count by up to 50%
 - **Custom shader** encodes voxel ID and light level per-vertex instead of per-face, which allows the greedy merge step to be more aggressive than a naive implementation
 - **Ambient occlusion** is baked directly into the mesh at generation time with zero runtime cost
 - **Flood-fill sun lighting** propagates 4-bit (0-15) light values using a queue-based flood fill running as a Burst-compiled job
-- **Live voxel editing** — add or remove voxels at runtime and the lighting and mesh update automatically
-- **Jobs + Burst throughout** — voxel generation, bit matrix building, lighting, and meshing all run as Burst-compiled `IJob` structs on worker threads
+- **Live voxel editing** lets you add or remove voxels at runtime and the lighting and mesh update automatically
+- **Jobs + Burst throughout**: voxel generation, bit matrix building, lighting, and meshing all run as Burst-compiled `IJob` structs on worker threads
 - **Spiral chunk loading** queues chunks outward from the player so the area around the player is always prioritised
 - **Perlin noise terrain** included out of the box, easy to replace by implementing a single interface
 
 
-## How It Works
+## Architecture
+
+The world is divided into **chunks** — fixed-size 64×64×64 voxel volumes. Only chunks near the player are loaded at any given time. Each chunk is generated, lit, and meshed independently, which is what makes the whole pipeline parallelisable.
 
 ### Chunk Pipeline
 
-Each 64×64×64 chunk goes through a structured async pipeline before it appears on screen:
+Each chunk goes through a structured async pipeline before it appears on screen:
 
 ```
 Voxel Generation (IVoxelsGenerator)
@@ -80,7 +82,11 @@ visible_faces = solid_mask & ~(solid_mask >> 1)
 
 ![Wireframe toggle showing face merging](docs/greedy_wireframe.png)
 
-After culling, the algorithm scans each 2D slice of the chunk and merges adjacent visible faces into the largest rectangles possible. The custom shader encodes the voxel ID per-vertex, so faces of different block types can be merged into a single quad. Faces with different lighting or AO values still can't be merged.
+After culling, the algorithm scans each 2D slice of the chunk and merges adjacent visible faces into the largest rectangles possible. Faces with different lighting or AO values still can't be merged.
+
+### Custom Shader
+
+A standard greedy meshing implementation can only merge faces that share the same block type, since the texture is typically set per-face. The custom shader here encodes the voxel ID per-vertex instead, so the GPU looks up the correct texture for each pixel within a merged quad. This means faces of different block types can be merged into a single quad, pushing the triangle reduction further.
 
 ### Ambient Occlusion
 
@@ -96,8 +102,6 @@ finalColor *= lerp(1.0, ao, _AOStrength);
 No screen-space passes, no ray marching.
 
 ### Flood-Fill Sun Lighting
-
-![Light propagation updating after a voxel is removed](docs/lighting_propagation.gif)
 
 Light values are 4-bit integers (0-15). Sun light enters from the top of each chunk and propagates downward and outward using a queue-based flood fill. When a voxel is added or removed, only the affected region is recalculated. Darkness propagates first, then light re-floods from surviving sources.
 
@@ -136,8 +140,8 @@ Or clone the repository and add it as a local package:
 1. Create a new URP project (or use an existing one)
 2. Add a `VoxelWorld` component to a GameObject in your scene
 3. Assign an `EngineSettings` ScriptableObject (**Assets → Create → VoxelEngine → Engine Settings**)
-4. Implement `IVoxelsGenerator` to define your terrain, or use the included `HillsVoxelsGenerator`
-5. Call `voxelWorld.SetPlayerChunk(playerChunkPosition)` each frame to drive chunk loading
+4. Implement `IVoxelsGenerator` to define your terrain, or use the included `HillsVoxelsGenerator` (see [Writing a Custom Voxel Generator](#writing-a-custom-voxel-generator))
+5. Call `voxelWorld.SetPlayerChunk(playerChunkPosition)` each frame to drive chunk loading — without this call no chunks will be generated
 
 `EngineSettings` exposes three properties:
 
@@ -195,7 +199,7 @@ Voxel values: `0` = air, `1`+ = block ID (up to 255 block types). The engine han
 
 ## Known Issues
 
-- **Chunk-edge lighting** — light values can be incorrect at the seam between two chunks. Top priority fix, coming in an upcoming update.
+- **Chunk-edge lighting**: light values can be incorrect at the seam between two chunks. Top priority fix, coming in an upcoming update.
 
 
 ## Roadmap
@@ -206,16 +210,9 @@ Voxel values: `0` = air, `1`+ = block ID (up to 255 block types). The engine han
 - [ ] Dynamic lighting
 - [ ] Complex world generation (biomes, caves, structures)
 
-Follow development on the blog: **[shipthecode.dev](https://shipthecode.dev)**
-
-
-## Blog Series
-
-I'm writing a detailed breakdown of how this engine was built — the math, the Job System patterns, the shader tricks, all of it. If you want to understand not just what the code does but why, start there.
-
-**[shipthecode.dev](https://shipthecode.dev)**
+I'm writing a detailed breakdown of how this engine was built: the math, the Job System patterns, the shader tricks, all of it. Follow along at **[shipthecode.dev](https://shipthecode.dev)**.
 
 
 ## License
 
-MIT — see [LICENSE](LICENSE) for details.
+MIT, see [LICENSE](LICENSE) for details.
