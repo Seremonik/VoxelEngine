@@ -11,7 +11,7 @@
 
 Binary face culling · Greedy meshing · Ambient occlusion · Flood-fill sun lighting · Fully parallel
 
-![Hero GIF — walking around terrain, placing and destroying voxels with live lighting updates](docs/hero.gif)
+![Hero GIF showing walking around terrain, placing and destroying voxels with live lighting updates](docs/hero.gif)
 
 </div>
 
@@ -29,13 +29,12 @@ Binary face culling · Greedy meshing · Ambient occlusion · Flood-fill sun lig
 - **Flood-fill sun lighting** propagates 4-bit (0-15) light values using a queue-based flood fill running as a Burst-compiled job
 - **Live voxel editing** lets you add or remove voxels at runtime and the lighting and mesh update automatically
 - **Jobs + Burst throughout**: voxel generation, bit matrix building, lighting, and meshing all run as Burst-compiled `IJob` structs on worker threads
-- **Spiral chunk loading** queues chunks outward from the player so the area around the player is always prioritised
 - **Perlin noise terrain** included out of the box, easy to replace by implementing a single interface
 
 
 ## Architecture
 
-The world is divided into **chunks** — fixed-size 64×64×64 voxel volumes. Only chunks near the player are loaded at any given time. Each chunk is generated, lit, and meshed independently, which is what makes the whole pipeline parallelisable.
+The world is divided into **chunks**, fixed-size 64×64×64 voxel volumes. Only chunks near the player are loaded at any given time. Each chunk is generated, lit, and meshed independently, which is what makes the whole pipeline parallelisable.
 
 ### Chunk Pipeline
 
@@ -126,7 +125,7 @@ Every expensive step runs as a Burst-compiled job on Unity's worker threads. Mul
 Add the package via the Unity Package Manager using the **git URL**:
 
 ```
-https://github.com/Seremonik/VoxelEngine.git
+https://github.com/Seremonik/Unity-Voxel-Engine.git
 ```
 
 Or clone the repository and add it as a local package:
@@ -141,7 +140,7 @@ Or clone the repository and add it as a local package:
 2. Add a `VoxelWorld` component to a GameObject in your scene
 3. Assign an `EngineSettings` ScriptableObject (**Assets → Create → VoxelEngine → Engine Settings**)
 4. Implement `IVoxelsGenerator` to define your terrain, or use the included `HillsVoxelsGenerator` (see [Writing a Custom Voxel Generator](#writing-a-custom-voxel-generator))
-5. Call `voxelWorld.SetPlayerChunk(playerChunkPosition)` each frame to drive chunk loading — without this call no chunks will be generated
+5. Call `voxelWorld.SetPlayerChunk(playerChunkPosition)` each frame to drive chunk loading (without this call no chunks will be generated)
 
 `EngineSettings` exposes three properties:
 
@@ -172,7 +171,7 @@ The included sample (`Samples/Basic Example`) gives you a fully playable scene o
 | `F1` | Toggle debug view |
 | `F2` | Toggle first / third person camera |
 
-Import it via **Package Manager → VoxelEngine → Samples → Basic Example → Import**.
+The sample scene is available directly in the package under `Samples/Basic Example`.
 
 
 ## Writing a Custom Voxel Generator
@@ -209,6 +208,7 @@ Voxel values: `0` = air, `1`+ = block ID (up to 255 block types). The engine han
 - [ ] Serialization
 - [ ] Dynamic lighting
 - [ ] Complex world generation (biomes, caves, structures)
+- [ ] Custom physics
 
 I'm writing a detailed breakdown of how this engine was built: the math, the Job System patterns, the shader tricks, all of it. Follow along at **[shipthecode.dev](https://shipthecode.dev)**.
 
