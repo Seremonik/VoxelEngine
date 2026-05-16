@@ -1,6 +1,7 @@
 using System;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace VoxelEngine
 {
@@ -25,14 +26,17 @@ namespace VoxelEngine
             if (Camera.main == null)
                 return;
             
-            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            var mouse = Mouse.current;
+            if (mouse == null) return;
+
+            Ray ray = Camera.main.ScreenPointToRay(mouse.position.ReadValue());
             hitTerrain = RayVoxel(ray, out voxelPosition, out hitPosition, out hitNormal);
 
-            if (Input.GetMouseButtonDown(0) && HitTerrain)
+            if (mouse.leftButton.wasPressedThisFrame && HitTerrain)
             {
                 voxelWorld.AddVoxel(VoxelPosition + HitNormal, 15);
             }
-            else if (Input.GetMouseButtonDown(1) & HitTerrain)
+            else if (mouse.rightButton.wasPressedThisFrame && HitTerrain)
             {
                 voxelWorld.RemoveVoxel(VoxelPosition);
             }

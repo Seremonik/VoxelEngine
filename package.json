@@ -9,13 +9,7 @@
   },
   "dependencies": {
     "com.unity.entities": "1.4.5",
+    "com.unity.inputsystem": "1.11.2",
     "com.unity.render-pipelines.universal": "17.3.0"
-  },
-  "samples": [
-    {
-      "displayName": "Basic Example",
-      "description": "A basic example scene demonstrating terrain generation and character controller.",
-      "path": "Samples~/Basic Example"
-    }
-  ]
+  }
 }

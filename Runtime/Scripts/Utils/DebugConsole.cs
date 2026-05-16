@@ -2,6 +2,7 @@ using System;
 using TMPro;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace VoxelEngine
 {
@@ -31,12 +32,15 @@ namespace VoxelEngine
 
         private void Update()
         {
-            if (Input.GetKeyDown(KeyCode.F1))
+            var keyboard = Keyboard.current;
+            if (keyboard == null) return;
+
+            if (keyboard.f1Key.wasPressedThisFrame)
             {
                 isOpened = !isOpened;
                 debugConsoleContainer.SetActive(isOpened);
             }
-            if (Input.GetKeyDown(KeyCode.F2))
+            if (keyboard.f2Key.wasPressedThisFrame)
             {
                 isFpsCamera = !isFpsCamera;
                 thirdPersonCamera.gameObject.SetActive(!isFpsCamera);
