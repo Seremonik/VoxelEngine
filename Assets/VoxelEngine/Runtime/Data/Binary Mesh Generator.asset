@@ -12,4 +12,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c2b8ce37d5d1488e855e194a1cc3e30e, type: 3}
   m_Name: Binary Mesh Generator
   m_EditorClassIdentifier: 
-  EnableGreedyMeshing: 0
+  EnableGreedyMeshing: 1

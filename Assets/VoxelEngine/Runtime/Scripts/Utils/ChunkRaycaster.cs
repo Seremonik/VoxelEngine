@@ -22,6 +22,9 @@ namespace VoxelEngine
 
         private void Update()
         {
+            if (Camera.main == null)
+                return;
+            
             Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
             hitTerrain = RayVoxel(ray, out voxelPosition, out hitPosition, out hitNormal);
 

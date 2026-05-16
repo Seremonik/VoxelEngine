@@ -19,6 +19,7 @@ namespace VoxelEngine
         private ChunkRaycaster chunkRaycaster;
         [SerializeField]
         private Transform hitSphere;
+        [SerializeField] private Camera thirdPersonCamera;
         
         [SerializeField, Header("Crosshair Debug Info")]
         private TMP_Text voxelPosition;
@@ -26,6 +27,7 @@ namespace VoxelEngine
         private TMP_Text lightValue;
         
         private bool isOpened;
+        private bool isFpsCamera;
 
         private void Update()
         {
@@ -33,6 +35,12 @@ namespace VoxelEngine
             {
                 isOpened = !isOpened;
                 debugConsoleContainer.SetActive(isOpened);
+            }
+            if (Input.GetKeyDown(KeyCode.F2))
+            {
+                isFpsCamera = !isFpsCamera;
+                thirdPersonCamera.gameObject.SetActive(!isFpsCamera);
+                playerPosition.gameObject.SetActive(isFpsCamera);
             }
 
             if (!isOpened) 
