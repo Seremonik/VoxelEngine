@@ -34,7 +34,7 @@ namespace VoxelEngine
 
             if (mouse.leftButton.wasPressedThisFrame && HitTerrain)
             {
-                voxelWorld.AddVoxel(VoxelPosition + HitNormal, 15);
+                voxelWorld.AddVoxel(VoxelPosition + HitNormal, 2);
             }
             else if (mouse.rightButton.wasPressedThisFrame && HitTerrain)
             {

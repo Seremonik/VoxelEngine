@@ -139,6 +139,14 @@ Or clone the repository and add it as a local package:
 4. Implement `IVoxelsGenerator` to define your terrain, or use the included `HillsVoxelsGenerator`
 5. Call `voxelWorld.SetPlayerChunk(playerChunkPosition)` each frame to drive chunk loading
 
+`EngineSettings` exposes three properties:
+
+| Property | Description |
+|----------|-------------|
+| `AO Strength` | Controls how strong the ambient occlusion effect appears (0 = off, 1 = full) |
+| `World Radius` | How many chunks to load around the player |
+| `Max Jobs Per Frame` | Limits how many chunk generation jobs are scheduled each frame |
+
 
 ## Sample Scene
 
