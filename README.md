@@ -1,4 +1,4 @@
-# VoxelEngine
+# Unity Voxel Engine
 
 <div align="center">
 
@@ -15,27 +15,23 @@ Binary face culling · Greedy meshing · Ambient occlusion · Flood-fill sun lig
 
 </div>
 
----
-
-> This project was inspired by [this fantastic breakdown of greedy meshing](https://www.youtube.com/watch?v=4xs66m1Of4A&t=1526s). Highly recommended watch before diving into the code.
+> This project was inspired by [this fantastic breakdown of greedy meshing](https://www.youtube.com/watch?v=4xs66m1Of4A). Highly recommended watch before diving into the code.
 >
-> I'm writing a detailed blog series on how every system here was built — follow along at **[shipthecode.dev](https://shipthecode.dev)**.
+> I'm writing a detailed blog series on how every system here was built. Follow along at **[shipthecode.dev](https://shipthecode.dev)**.
 
----
 
 ## Features
 
-- **Binary face culling** — 64-bit bitmask operations reduce visible face detection to a handful of bitwise instructions per slice
-- **Greedy meshing** — adjacent coplanar faces are merged into the largest possible quads, drastically cutting vertex and triangle counts
-- **Custom shader** — unlocks even more aggressive greedy merging by encoding voxel ID and light level per-vertex instead of per-face, keeping merged quads correct across block type and lighting boundaries
-- **Ambient occlusion** — per-vertex AO baked directly into the mesh at generation time, zero runtime cost
-- **Flood-fill sun lighting** — 4-bit (0–15) propagation using a queue-based flood fill, runs as a Burst-compiled job
-- **Live voxel editing** — add or remove voxels at runtime; lighting recalculates and re-meshes affected chunks automatically
-- **Jobs + Burst throughout** — every heavy operation (voxel generation, bit matrix building, lighting, meshing) is a Burst-compiled `IJob` running on worker threads in parallel
-- **Chunk loading order** — chunks are queued in a spiral pattern outward from the player so the area directly around the player is always prioritised
-- **Perlin noise terrain** — a ready-to-use 3D Perlin noise generator; swap it out with your own by implementing a single interface
+- **Binary face culling** uses 64-bit bitmask operations to reduce visible face detection to a handful of bitwise instructions per slice
+- **Greedy meshing** merges adjacent coplanar faces into the largest possible quads, drastically cutting vertex and triangle counts
+- **Custom shader** encodes voxel ID and light level per-vertex instead of per-face, which allows the greedy merge step to be more aggressive than a naive implementation
+- **Ambient occlusion** is baked directly into the mesh at generation time with zero runtime cost
+- **Flood-fill sun lighting** propagates 4-bit (0-15) light values using a queue-based flood fill running as a Burst-compiled job
+- **Live voxel editing** — add or remove voxels at runtime and the lighting and mesh update automatically
+- **Jobs + Burst throughout** — voxel generation, bit matrix building, lighting, and meshing all run as Burst-compiled `IJob` structs on worker threads
+- **Spiral chunk loading** queues chunks outward from the player so the area around the player is always prioritised
+- **Perlin noise terrain** included out of the box, easy to replace by implementing a single interface
 
----
 
 ## How It Works
 
@@ -49,7 +45,7 @@ Voxel Generation (IVoxelsGenerator)
         ▼  [parallel]
 ┌───────────────────┐   ┌──────────────────┐   ┌────────────────────┐
 │  VoxelBuffer job  │   │  BitMatrix job   │   │  Local Sun Light   │
-│  (pack voxel IDs  │   │  (3×64 ulongs —  │   │  (flood fill from  │
+│  (pack voxel IDs  │   │  (3×64 ulongs,   │   │  (flood fill from  │
 │   into uint[])    │   │   face culling)  │   │   top of chunk)    │
 └───────────────────┘   └──────────────────┘   └────────────────────┘
         │                       │                        │
@@ -74,7 +70,7 @@ Voxel Generation (IVoxelsGenerator)
 
 ### Binary Face Culling
 
-Three 64×64 bitmasks (one per axis) represent which voxel slots are solid. A single bitwise shift and AND produces the set of faces that need to be drawn — no per-voxel comparisons.
+Three 64×64 bitmasks (one per axis) represent which voxel slots are solid. A single bitwise shift and AND produces the set of faces that need to be drawn, with no per-voxel comparisons.
 
 ```
 visible_faces = solid_mask & ~(solid_mask >> 1)
@@ -82,30 +78,29 @@ visible_faces = solid_mask & ~(solid_mask >> 1)
 
 ### Greedy Meshing
 
-![Wireframe toggle showing face merging](docs/greedy_wireframe.gif)
+![Wireframe toggle showing face merging](docs/greedy_wireframe.png)
 
-After culling, the algorithm scans each 2D slice of the chunk and merges adjacent visible faces into the largest rectangles possible. The custom shader keeps these merged quads visually correct across different block types and light levels, allowing the merge step to be more aggressive than a naive implementation.
+After culling, the algorithm scans each 2D slice of the chunk and merges adjacent visible faces into the largest rectangles possible. The custom shader encodes the voxel ID per-vertex, so faces of different block types can be merged into a single quad. Faces with different lighting or AO values still can't be merged.
 
 ### Ambient Occlusion
 
-![Close-up showing AO darkening on corners and crevices](docs/ao_closeup.png)
+![Close-up showing AO darkening on corners and crevices](docs/AO.gif)
 
-AO is computed at mesh generation time. For each vertex, the four surrounding corner voxels are sampled and the occlusion value is packed directly into the vertex data. The shader applies a cosine curve for a soft, natural look:
+AO is computed at mesh generation time. For each vertex, the four surrounding corner voxels are sampled and the occlusion value is packed directly into the vertex data. The shader applies a cosine curve for a soft look:
 
 ```glsl
 ao = 1.0 - cos((light / 15.0 * PI) / 2.0)
 finalColor *= lerp(1.0, ao, _AOStrength);
 ```
 
-Zero runtime cost — no screen-space passes, no ray marching.
+No screen-space passes, no ray marching.
 
 ### Flood-Fill Sun Lighting
 
 ![Light propagation updating after a voxel is removed](docs/lighting_propagation.gif)
 
-Light values are 4-bit integers (0–15). Sun light enters from the top of each chunk and propagates downward and outward using a queue-based flood fill. When a voxel is added or removed, only the affected region is recalculated — darkness is propagated first, then light is re-flooded from surviving sources.
+Light values are 4-bit integers (0-15). Sun light enters from the top of each chunk and propagates downward and outward using a queue-based flood fill. When a voxel is added or removed, only the affected region is recalculated. Darkness propagates first, then light re-floods from surviving sources.
 
----
 
 ## Performance
 
@@ -113,7 +108,6 @@ Light values are 4-bit integers (0–15). Sun light enters from the top of each 
 
 Every expensive step runs as a Burst-compiled job on Unity's worker threads. Multiple chunks generate simultaneously, and the phases within each chunk (voxel buffer, bit matrix, lighting) run in parallel via combined `JobHandle` dependencies.
 
----
 
 ## Getting Started
 
@@ -128,7 +122,7 @@ Every expensive step runs as a Burst-compiled job on Unity's worker threads. Mul
 Add the package via the Unity Package Manager using the **git URL**:
 
 ```
-https://github.com/your-username/VoxelEngine.git
+https://github.com/Seremonik/VoxelEngine.git
 ```
 
 Or clone the repository and add it as a local package:
@@ -145,11 +139,10 @@ Or clone the repository and add it as a local package:
 4. Implement `IVoxelsGenerator` to define your terrain, or use the included `HillsVoxelsGenerator`
 5. Call `voxelWorld.SetPlayerChunk(playerChunkPosition)` each frame to drive chunk loading
 
----
 
 ## Sample Scene
 
-![Wide shot of the Perlin noise terrain](docs/terrain.png)
+![Wide shot of the Perlin noise terrain](docs/Terrain.png)
 
 The included sample (`Samples/Basic Example`) gives you a fully playable scene out of the box.
 
@@ -164,10 +157,11 @@ The included sample (`Samples/Basic Example`) gives you a fully playable scene o
 | `Right Click` | Place voxel |
 | `B` | Lock / unlock cursor |
 | `C` | Freeze movement |
+| `F1` | Toggle debug view |
+| `F2` | Toggle first / third person camera |
 
 Import it via **Package Manager → VoxelEngine → Samples → Basic Example → Import**.
 
----
 
 ## Writing a Custom Voxel Generator
 
@@ -188,35 +182,31 @@ public class MyGenerator : VoxelsGeneratorBase
 }
 ```
 
-Voxel values: `0` = air, `1`+ = block ID (up to 255 block types). The engine handles everything else — culling, lighting, meshing.
+Voxel values: `0` = air, `1`+ = block ID (up to 255 block types). The engine handles culling, lighting, and meshing.
 
----
 
 ## Known Issues
 
-- **Chunk-edge lighting** — light values can be incorrect at the seam between two chunks. This is the top priority fix and will be resolved in an upcoming update.
+- **Chunk-edge lighting** — light values can be incorrect at the seam between two chunks. Top priority fix, coming in an upcoming update.
 
----
 
 ## Roadmap
 
 - [ ] Fix chunk-edge lighting seams
-- [ ] Level of Detail (LOD) — lower-resolution meshes for distant chunks
-- [ ] Serialization — save and load chunk data to disk
-- [ ] Dynamic lighting — point lights and torches at runtime
-- [ ] Complex world generation — biomes, caves, structures
+- [ ] Level of Detail (LOD)
+- [ ] Serialization
+- [ ] Dynamic lighting
+- [ ] Complex world generation (biomes, caves, structures)
 
 Follow development on the blog: **[shipthecode.dev](https://shipthecode.dev)**
 
----
 
 ## Blog Series
 
-I'm writing a post-by-post breakdown of how this engine was built — the math, the Unity Job System patterns, the shader tricks, all of it. If you want to understand not just *what* the code does but *why*, start there.
+I'm writing a detailed breakdown of how this engine was built — the math, the Job System patterns, the shader tricks, all of it. If you want to understand not just what the code does but why, start there.
 
 **[shipthecode.dev](https://shipthecode.dev)**
 
----
 
 ## License
 
